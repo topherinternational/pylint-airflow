@@ -86,7 +86,7 @@ class OperatorChecker(checkers.BaseChecker):
                         # TODO support other values than constants
                         task_id = keyword.value.value
                         continue
-                    elif keyword.arg == "python_callable":
+                    if keyword.arg == "python_callable":
                         python_callable_name = keyword.value.name
 
                 if var_name != task_id:

@@ -4,7 +4,7 @@ import io
 import os
 
 import pytest
-from pylint.test.test_functional import (
+from pylint.testutils import (
     LintModuleTest,
     FunctionalTestFile,
     multiset_difference,

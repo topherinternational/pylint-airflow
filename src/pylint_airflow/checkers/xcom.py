@@ -46,7 +46,7 @@ class XComChecker(checkers.BaseChecker):
                     if keyword.arg == "python_callable":
                         python_callable = keyword.value.name
                         continue
-                    elif keyword.arg == "task_id":
+                    if keyword.arg == "task_id":
                         task_id = keyword.value.value
 
                 if python_callable:
