@@ -1,7 +1,7 @@
 """Checks on Airflow DAGs."""
 
-from collections import defaultdict
-from typing import Tuple, Union
+from collections import defaultdict, OrderedDict
+from typing import Tuple, Union, Dict, List
 
 import astroid
 from pylint import checkers
@@ -87,6 +87,14 @@ class DagChecker(checkers.BaseChecker):
 
         return None, None
 
+    @staticmethod
+    def _dagids_to_deduplicated_nodes(
+        dagids_to_nodes: Dict[str, List[Union[astroid.Assign, astroid.Call]]]
+    ):
+        return {
+            dag_id: list(OrderedDict.fromkeys(nodes)) for dag_id, nodes in dagids_to_nodes.items()
+        }
+
     @utils.only_required_for_messages("duplicate-dag-name", "match-dagid-filename")
     def visit_module(self, node: astroid.Module):
         """Checks in the context of (a) complete DAG(s)."""
@@ -95,24 +103,22 @@ class DagChecker(checkers.BaseChecker):
         with_nodes = node.nodes_of_class(astroid.With)
 
         self.find_dags_in_assignments(assign_nodes, dagids_to_nodes)
-
         self.find_dags_in_context_managers(with_nodes, dagids_to_nodes)
 
-        self.check_single_dag_equals_filename(dagids_to_nodes, node)
-
+        self.check_single_dag_equals_filename(node, dagids_to_nodes)
         self.check_duplicate_dag_names(dagids_to_nodes)
 
-    def find_dags_in_assignments(self, assigns, dagids_nodes):
-        for assign in assigns:
-            if isinstance(assign.value, astroid.Call):
-                func = assign.value.func
-                dagid, dagnode = self._find_dag_in_call_node(assign.value, func)
+    def find_dags_in_assignments(self, assign_nodes, dagids_nodes):
+        for assign_node in assign_nodes:
+            if isinstance(assign_node.value, astroid.Call):
+                func = assign_node.value.func
+                dagid, dagnode = self._find_dag_in_call_node(assign_node.value, func)
                 if dagid and dagnode:  # Checks if there are no Nones
                     dagids_nodes[dagid].append(dagnode)
 
-    def find_dags_in_context_managers(self, withs, dagids_nodes):
-        for with_ in withs:
-            for with_item in with_.items:
+    def find_dags_in_context_managers(self, with_nodes, dagids_nodes):
+        for with_node in with_nodes:
+            for with_item in with_node.items:
                 call_node = with_item[0]
                 if isinstance(call_node, astroid.Call):
                     func = call_node.func
@@ -120,11 +126,11 @@ class DagChecker(checkers.BaseChecker):
                     if dagid and dagnode:  # Checks if there are no Nones
                         dagids_nodes[dagid].append(dagnode)
 
-    def check_single_dag_equals_filename(self, dagids_to_nodes, node):
+    def check_single_dag_equals_filename(self, node, dagids_to_nodes):
         # Check if single DAG and if equals filename
         # Unit test nodes have file "<?>"
         if len(dagids_to_nodes) == 1 and node.file != "<?>":
-            dagid, _ = list(dagids_to_nodes.items())[0]
+            dagid = list(self._dagids_to_deduplicated_nodes(dagids_to_nodes).items())[0]
             expected_filename = f"{dagid}.py"
             current_filename = node.file.split("/")[-1]
             if expected_filename != current_filename:
@@ -133,7 +139,7 @@ class DagChecker(checkers.BaseChecker):
     def check_duplicate_dag_names(self, dagids_to_nodes):
         duplicate_dagids = [
             (dagid, nodes)
-            for dagid, nodes in dagids_to_nodes.items()
+            for dagid, nodes in self._dagids_to_deduplicated_nodes(dagids_to_nodes).items()
             if len(nodes) >= 2 and dagid is not None
         ]
         for (dagid, assign_nodes) in duplicate_dagids:
