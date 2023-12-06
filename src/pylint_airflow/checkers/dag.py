@@ -59,7 +59,7 @@ class DagChecker(checkers.BaseChecker):
         call_node: astroid.Call, func: Union[astroid.Name, astroid.Attribute]
     ) -> Tuple[Union[str, None], Union[astroid.Assign, astroid.Call, None]]:
         """
-        Find DAG in a call_node.
+        Find DAG in a call_node. Returns (None, None) if no DAG is found.
         :param call_node:
         :param func:
         :return: (dag_id, node)
@@ -89,8 +89,8 @@ class DagChecker(checkers.BaseChecker):
 
     @staticmethod
     def _dagids_to_deduplicated_nodes(
-        dagids_to_nodes: Dict[str, List[Union[astroid.Assign, astroid.Call]]]
-    ):
+        dagids_to_nodes: Dict[str, List[astroid.Call]]
+    ) -> Dict[str, List[astroid.Call]]:
         return {
             dag_id: list(OrderedDict.fromkeys(nodes)) for dag_id, nodes in dagids_to_nodes.items()
         }
@@ -98,7 +98,7 @@ class DagChecker(checkers.BaseChecker):
     @utils.only_required_for_messages("duplicate-dag-name", "match-dagid-filename")
     def visit_module(self, node: astroid.Module):
         """Checks in the context of (a) complete DAG(s)."""
-        dagids_to_nodes = defaultdict(list)
+        dagids_to_nodes: Dict[str, List[astroid.Call]] = defaultdict(list)
         assign_nodes = node.nodes_of_class(astroid.Assign)
         with_nodes = node.nodes_of_class(astroid.With)
 
