@@ -60,9 +60,9 @@ class TestDuplicateDagName(CheckerTestCase):
         DAG(dag_id="testme")
         """
         ast = astroid.parse(testcase)
-        expected_msg_node_1 = ast.body[4]
-        expected_msg_node_2 = ast.body[6]
-        expected_msg_node_3 = ast.body[8]
+        expected_msg_node_1 = ast.body[4].value
+        expected_msg_node_2 = ast.body[6].value
+        expected_msg_node_3 = ast.body[8].value
         with self.assertAddsMessages(
             MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_1, args="mydag"),
             MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_2, args="lintme"),
@@ -119,9 +119,8 @@ class TestDuplicateDagName(CheckerTestCase):
             pass
         """
         ast = astroid.parse(testcase)
-        expected_msg_node_1 = ast.body[1].value
-        expected_msg_node_2 = ast.body[2]
-        expected_msg_node_3 = ast.body[3].items[0][0]
+        expected_msg_node_1 = ast.body[2].value
+        expected_msg_node_2 = ast.body[3].items[0][0]
         with self.assertAddsMessages(
             MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_1, args="mydag"),
             MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_2, args="mydag"),
@@ -137,7 +136,7 @@ class TestDuplicateDagName(CheckerTestCase):
 
         dagname = "mydag"
 
-        dag1 = DAG(dag_id=dagname)  # test dag_id from variable
+        dag1 = DAG(dag_id=dagname)
         dag2 = DAG(dag_id="mydag")
         """
         ast = astroid.parse(testcase)
@@ -156,7 +155,7 @@ class TestDuplicateDagName(CheckerTestCase):
 
         dagname = "mydag"
 
-        dag1 = DAG(dag_id="mydagfoo")  # test dag_id from variable
+        dag1 = DAG(dag_id="mydagfoo")
         dag2 = DAG(dag_id=f"{dagname}foo")
         """
         ast = astroid.parse(testcase)
