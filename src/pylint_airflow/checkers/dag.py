@@ -108,7 +108,9 @@ class DagChecker(checkers.BaseChecker):
         self.check_single_dag_equals_filename(node, dagids_to_nodes)
         self.check_duplicate_dag_names(dagids_to_nodes)
 
-    def find_dags_in_assignments(self, assign_nodes, dagids_nodes):
+    def find_dags_in_assignments(self, assign_nodes, dagids_nodes) -> None:
+        """Finds calls to DAG constructors in Assign nodes and puts them in the
+        dagids_nodes dict."""
         for assign_node in assign_nodes:
             if isinstance(assign_node.value, astroid.Call):
                 func = assign_node.value.func
@@ -116,7 +118,9 @@ class DagChecker(checkers.BaseChecker):
                 if dagid and dagnode:  # Checks if there are no Nones
                     dagids_nodes[dagid].append(dagnode)
 
-    def find_dags_in_context_managers(self, with_nodes, dagids_nodes):
+    def find_dags_in_context_managers(self, with_nodes, dagids_nodes) -> None:
+        """Finds calls to DAG constructors in With nodes (context managers) and puts them in the
+        dagids_nodes dict."""
         for with_node in with_nodes:
             for with_item in with_node.items:
                 call_node = with_item[0]
@@ -126,7 +130,9 @@ class DagChecker(checkers.BaseChecker):
                     if dagid and dagnode:  # Checks if there are no Nones
                         dagids_nodes[dagid].append(dagnode)
 
-    def check_single_dag_equals_filename(self, node, dagids_to_nodes):
+    def check_single_dag_equals_filename(self, node, dagids_to_nodes) -> None:
+        """Adds a message if the module declares a single DAG AND the dag_id does not match the
+        module filename."""
         # Check if single DAG and if equals filename
         # Unit test nodes have file "<?>"
         if len(dagids_to_nodes) == 1 and node.file != "<?>":
@@ -136,7 +142,8 @@ class DagChecker(checkers.BaseChecker):
             if expected_filename != current_filename:
                 self.add_message("match-dagid-filename", node=node)
 
-    def check_duplicate_dag_names(self, dagids_to_nodes):
+    def check_duplicate_dag_names(self, dagids_to_nodes) -> None:
+        """Adds a message if the module declares two or more DAGs with the same dag_id."""
         duplicate_dagids = [
             (dagid, nodes)
             for dagid, nodes in self._dagids_to_deduplicated_nodes(dagids_to_nodes).items()
