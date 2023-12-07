@@ -1,14 +1,11 @@
 """Globally accessible helpers functions/classes in all tests."""
 
-import io
 import os
 
 import pytest
 from pylint.testutils import (
     LintModuleTest,
     FunctionalTestFile,
-    multiset_difference,
-    get_expected_messages,
 )
 
 pytest_plugins = ["helpers_namespace"]
@@ -40,20 +37,20 @@ class PylintAirflowLintModuleTest(LintModuleTest):
         self._test_filepath = test_filepath
         self._linter.load_plugin_modules(["pylint_airflow"])
 
-    def _get_expected(self):
-        with io.open(self._test_filepath, encoding="utf8") as fobj:
-            return get_expected_messages(fobj)
+    def _get_expected_messages(self):
+        with self._open_source_file() as test_file:
+            return self.get_expected_messages(test_file)
 
     def check_file(self):
         """Run Pylint on a file."""
         self._linter.check(self._test_filepath)
 
-        expected_msgs = self._get_expected()
-        received_msgs, received_text = self._get_received()
+        expected_msgs = self._get_expected_messages()
+        received_msgs, received_text = self._get_actual()
         linesymbol_text = {(ol.lineno, ol.symbol): ol.msg for ol in received_text}
 
         if expected_msgs != received_msgs:
-            missing, unexpected = multiset_difference(expected_msgs, received_msgs)
+            missing, unexpected = self.multiset_difference(expected_msgs, received_msgs)
             msg = [f"Wrong results for file '{self._test_file.base}':"]
             if missing:
                 msg.append("\nExpected in testdata:")
@@ -61,7 +58,7 @@ class PylintAirflowLintModuleTest(LintModuleTest):
             if unexpected:
                 msg.append("\nUnexpected in testdata:")
                 msg.extend(
-                    f" {line_nr:3d}: {symbol} - {linesymbol_text[(line_nr,symbol)]}"
+                    f" {line_nr:3d}: {symbol} - {linesymbol_text[(line_nr, symbol)]}"
                     for line_nr, symbol in sorted(unexpected)
                 )
             pytest.fail("\n".join(msg))

@@ -65,7 +65,7 @@ class XComChecker(checkers.BaseChecker):
                     callable_func = node.getattr(callable_func_name)[0]
 
                     # Check if the function returns any values
-                    if any([isinstance(n, astroid.Return) for n in callable_func.body]):
+                    if any(isinstance(n, astroid.Return) for n in callable_func.body):
                         # Found a return statement
                         xcoms_pushed[task_id] = (python_callable, callable_func_name)
 
