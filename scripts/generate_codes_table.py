@@ -88,7 +88,7 @@ def gen_content(msgs: Dict[str, Dict[str, Tuple[str, str]]], lengths: List[int])
 
     pylint_message_order = ["I", "C", "R", "W", "E", "F"]
     for msgid_char, char_msgs in sorted(
-            msgs.items(), key=lambda i: pylint_message_order.index(i[0])
+        msgs.items(), key=lambda i: pylint_message_order.index(i[0])
     ):
         for msgid_nums, msg in sorted(char_msgs.items()):
             content = [msgid_char + msgid_nums, msg[0], msg[1]]
