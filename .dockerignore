@@ -8,4 +8,5 @@ dist/
 docker/
 docs/
 images/
+venv/
 LICENSE

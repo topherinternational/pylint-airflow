@@ -1,5 +1,7 @@
 apache-airflow~=1.10.2
 black>=18.9b0
+# TODO remove MarkupSafe when Airflow goes to 2.x.x
+MarkupSafe==2.0.1
 pytest-helpers-namespace==2019.1.8
 pytest-mock==1.10.1
 pytest~=4.3

@@ -1,10 +1,10 @@
 .PHONY: black
 black:
-	find . -name '*.py' | xargs black --check --line-length=100
+	find . -name '*.py' ! -path './venv/*' ! -path './build/*' | xargs black --check --line-length=100
 
 .PHONY: pylint
 pylint:
-	find . -name '*.py' | xargs pylint --output-format=colorized
+	find . -name '*.py' ! -path './venv/*' ! -path './build/*' | xargs pylint --output-format=colorized
 
 .PHONY: validate_message_ids
 validate_message_ids:
@@ -24,13 +24,13 @@ ci: | clean-compiled black pylint validate_message_ids pytest
 
 .PHONY: ci-docker
 ci-docker: build_ci_image
-	docker run -ti -v `pwd`:/pylint-airflow -w /pylint-airflow basph/pylint-airflow-ci:3.6-slim pip install .; make ci
-	docker run -ti -v `pwd`:/pylint-airflow -w /pylint-airflow basph/pylint-airflow-ci:3.7-slim pip install .; make ci
+	docker run -ti -v `pwd`:/pylint-airflow -w /pylint-airflow basph/pylint-airflow-ci:3.6-slim bash -c "pip install .; make ci"
+	docker run -ti -v `pwd`:/pylint-airflow -w /pylint-airflow basph/pylint-airflow-ci:3.7-slim bash -c "pip install .; make ci"
 
 .PHONY: build_ci_image
 build_ci_image:
-	docker build --file docker/ci.Dockerfile --build-arg PYTHON_VERSION=3.6-slim --tag basph/pylint-airflow-ci:3.6-slim .
-	docker build --file docker/ci.Dockerfile --build-arg PYTHON_VERSION=3.7-slim --tag basph/pylint-airflow-ci:3.7-slim .
+	docker build --file docker/ci.Dockerfile --progress plain --build-arg PYTHON_VERSION=3.6-slim --tag basph/pylint-airflow-ci:3.6-slim .
+	docker build --file docker/ci.Dockerfile --progress plain --build-arg PYTHON_VERSION=3.7-slim --tag basph/pylint-airflow-ci:3.7-slim .
 
 .PHONY: upload-to-pypi
 upload-to-pypi:

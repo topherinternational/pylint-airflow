@@ -5,6 +5,7 @@ This script is used by the CI to:
 2. For each message type, check if codes start at 0 and increment by 1, e.g. C8300, C8301, ...
 """
 import os
+import re
 from collections import defaultdict
 from typing import List
 
@@ -14,9 +15,9 @@ from pylint_airflow.__pkginfo__ import BASE_ID
 from pylint_airflow.checkers import register_checkers
 
 
-def is_class_part_of_pylint_airflow(class_):
-    """Expected input e.g. <class 'pylint_airflow.checkers.operator.OperatorChecker'>"""
-    return class_.__module__.split(".")[0] == "pylint_airflow"
+def has_pylint_airflow_base_id(msg_id: str):
+    """Check if the message ID contains the expected BASE_ID infix"""
+    return re.compile(f"[A-Z]{BASE_ID}[0-9]+").match(msg_id)
 
 
 def check_if_msg_ids_increment(message_ids: List[str]):
@@ -61,7 +62,7 @@ linter = PyLinter()
 register_checkers(linter)
 # Running register_checkers automatically validates there are no duplicate message ids
 for message in linter.msgs_store.messages:
-    if is_class_part_of_pylint_airflow(message.checker):
+    if has_pylint_airflow_base_id(message.msgid):
         msg_type = message.msgid[0]
         messages[msg_type].append(message.msgid)
 
