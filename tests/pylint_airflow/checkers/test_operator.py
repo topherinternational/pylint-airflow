@@ -15,8 +15,8 @@ class TestOperatorChecker(CheckerTestCase):
     def test_different_operator_varname_taskid(self):
         """task_id and operator instance name should match, but differ so should add message."""
         testcase = """
-        from airflow.operators.empty import EmptyOperator
-        mytask = EmptyOperator(task_id="foo") #@
+        from airflow.operators.dummy_operator import DummyOperator
+        mytask = DummyOperator(task_id="foo") #@
         """
         expected_message = "different-operator-varname-taskid"
 
@@ -42,8 +42,8 @@ class TestOperatorChecker(CheckerTestCase):
     def test_different_operator_varname_taskid_valid(self):
         """task_id and operator instance name are identical so no message should be added."""
         testcase = """
-        from airflow.operators.empty import EmptyOperator
-        mytask = EmptyOperator(task_id="mytask") #@
+        from airflow.operators.dummy_operator import DummyOperator
+        mytask = DummyOperator(task_id="mytask") #@
         """
 
         assign_node = astroid.extract_node(testcase)
@@ -111,12 +111,12 @@ class TestOperatorChecker(CheckerTestCase):
         operators. Should add message when mixing directions.
         """
         testcase = f"""
-        from airflow.operators.empty import EmptyOperator
-        t1 = EmptyOperator(task_id="t1")
-        t2 = EmptyOperator(task_id="t2")
-        t3 = EmptyOperator(task_id="t3")
-        t4 = EmptyOperator(task_id="t4")
-        t5 = EmptyOperator(task_id="t5")
+        from airflow.operators.dummy_operator import DummyOperator
+        t1 = DummyOperator(task_id="t1")
+        t2 = DummyOperator(task_id="t2")
+        t3 = DummyOperator(task_id="t3")
+        t4 = DummyOperator(task_id="t4")
+        t5 = DummyOperator(task_id="t5")
         {dependencies} #@
         """
         message = "mixed-dependency-directions"
