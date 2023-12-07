@@ -10,9 +10,9 @@ COPY requirements.txt requirements.txt
 # https://github.com/apache/airflow/pull/4513
 RUN apt-get update && \
     apt-get install -y gcc g++ make --no-install-recommends && \
-    pip install -U pip && \
-    SLUGIFY_USES_TEXT_UNIDECODE=yes pip install -r requirements.txt && \
-    apt-get remove -y --purge gcc g++ && \
+    pip install --upgrade pip
+RUN SLUGIFY_USES_TEXT_UNIDECODE=yes pip install -r requirements.txt
+RUN apt-get remove -y --purge gcc g++ && \
     apt-get autoremove -y && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/*
