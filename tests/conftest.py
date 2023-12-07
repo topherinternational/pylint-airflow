@@ -57,10 +57,7 @@ class PylintAirflowLintModuleTest(LintModuleTest):
             msg = [f"Wrong results for file '{self._test_file.base}':"]
             if missing:
                 msg.append("\nExpected in testdata:")
-                msg.extend(
-                    f" {line_nr:3d}: {symbol} - {linesymbol_text[(line_nr, symbol)]}"
-                    for line_nr, symbol in sorted(missing)
-                )
+                msg.extend(symbol for _, symbol in sorted(missing))
             if unexpected:
                 msg.append("\nUnexpected in testdata:")
                 msg.extend(
