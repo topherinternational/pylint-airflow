@@ -21,18 +21,19 @@ For example:
 | E8301 | symbol3 | Lorem ipsum |
 +-------+---------+-------------+
 """
-
+import re
 from collections import defaultdict
 from typing import List, Dict, Tuple
 
 from pylint.lint import PyLinter
 
+from pylint_airflow.__pkginfo__ import BASE_ID
 from pylint_airflow.checkers import register_checkers
 
 
-def is_class_part_of_pylint_airflow(class_):
-    """Expected input e.g. <class 'pylint_airflow.checkers.operator.OperatorChecker'>"""
-    return class_.__module__.split(".")[0] == "pylint_airflow"
+def has_pylint_airflow_base_id(msg_id: str):
+    """Check if the message ID contains the expected BASE_ID infix"""
+    return re.compile(f"[A-Z]{BASE_ID}[0-9]+").match(msg_id)
 
 
 def _rst_escape_string(string: str) -> str:
@@ -54,7 +55,7 @@ def gen_splitter(symbol: str, lengths: List[int]):
     :rtype: str
     """
 
-    content = f"{symbol}+{symbol}".join(f"{symbol*nchars}" for nchars in lengths)
+    content = f"{symbol}+{symbol}".join(f"{symbol * nchars}" for nchars in lengths)
     return f"+{symbol}{content}{symbol}+"
 
 
@@ -87,7 +88,7 @@ def gen_content(msgs: Dict[str, Dict[str, Tuple[str, str]]], lengths: List[int])
 
     pylint_message_order = ["I", "C", "R", "W", "E", "F"]
     for msgid_char, char_msgs in sorted(
-        msgs.items(), key=lambda i: pylint_message_order.index(i[0])
+            msgs.items(), key=lambda i: pylint_message_order.index(i[0])
     ):
         for msgid_nums, msg in sorted(char_msgs.items()):
             content = [msgid_char + msgid_nums, msg[0], msg[1]]
@@ -105,14 +106,14 @@ max_description_length = len("Description")
 linter = PyLinter()
 register_checkers(linter)
 for message in linter.msgs_store.messages:
-    if is_class_part_of_pylint_airflow(message.checker):
-        description = _rst_escape_string(message.descr)
+    if has_pylint_airflow_base_id(message.msgid):
+        description = _rst_escape_string(message.description)
         messages[message.msgid[0]][message.msgid[-4:]] = (message.symbol, description)
 
         if len(message.symbol) > max_symbol_length:
             max_symbol_length = len(message.symbol)
-        if len(message.descr) > max_description_length:
-            max_description_length = len(message.descr)
+        if len(message.description) > max_description_length:
+            max_description_length = len(message.description)
 
 # Generate Markdown table
 col_lengths = [5, max_symbol_length, max_description_length]
