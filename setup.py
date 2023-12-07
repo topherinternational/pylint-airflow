@@ -19,6 +19,7 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=requirements,
+    python_requires=">=3.7",
     keywords=["pylint", "airflow", "plugin"],
     classifiers=[
         "Development Status :: 3 - Alpha",
