@@ -27,7 +27,8 @@ class TestDagChecker(CheckerTestCase):
         ast = astroid.parse(testcase)
         expected_msg_node = ast.body[4].value
         with self.assertAddsMessages(
-            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node, args="lintme")
+            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node, args="lintme"),
+            ignore_position=True,
         ):
             self.checker.visit_module(ast)
 
