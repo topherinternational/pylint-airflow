@@ -3,7 +3,7 @@ from pathlib import Path
 
 from setuptools import setup, find_packages
 
-requirements = ["pylint==2.10.2"]
+requirements = ["pylint==2.11.1"]
 
 readme_path = Path(__file__).resolve().parent / "README.rst"
 with open(readme_path, encoding="utf-8") as readme_file:

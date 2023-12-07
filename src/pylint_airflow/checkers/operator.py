@@ -109,7 +109,7 @@ class OperatorChecker(checkers.BaseChecker):
                 binops_found.update(fetch_binops(node_.left))
             if isinstance(node_.right, astroid.BinOp):
                 binops_found.update(fetch_binops(node_.right))
-            if node_.op == ">>" or node_.op == "<<":
+            if node_.op in (">>", "<<"):
                 binops_found.add(node_.op)
 
             return binops_found
