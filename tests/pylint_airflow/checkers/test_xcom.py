@@ -1,7 +1,7 @@
 """Tests for the XCom checker."""
 
 import astroid
-from pylint.testutils import CheckerTestCase, Message
+from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
 
@@ -51,6 +51,7 @@ class TestXComChecker(CheckerTestCase):
         expected_msg_node = ast.body[2].value
         expected_args = "_pushtask"
         with self.assertAddsMessages(
-            Message(msg_id="unused-xcom", node=expected_msg_node, args=expected_args)
+            MessageTest(msg_id="unused-xcom", node=expected_msg_node, args=expected_args),
+            ignore_position=True,
         ):
             self.checker.visit_module(ast)

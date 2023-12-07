@@ -126,9 +126,8 @@ table = [
 ]
 result = "\n".join(table)
 
-print(
-    "{color_red}Copy the following into README.rst:{no_color}\n".format(
-        color_red="\x1b[1;31;40m", no_color="\x1b[0m"
-    )
-)
+color_red = "\x1b[1;31;40m"
+no_color = "\x1b[0m"
+
+print(f"{color_red}Copy the following into README.rst:{no_color}\n")
 print(result)

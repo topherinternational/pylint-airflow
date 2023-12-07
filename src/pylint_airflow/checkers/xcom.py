@@ -2,7 +2,6 @@
 
 import astroid
 from pylint import checkers
-from pylint import interfaces
 from pylint.checkers import utils
 
 from pylint_airflow.__pkginfo__ import BASE_ID
@@ -10,8 +9,6 @@ from pylint_airflow.__pkginfo__ import BASE_ID
 
 class XComChecker(checkers.BaseChecker):
     """Checks on Airflow XComs."""
-
-    __implements__ = interfaces.IAstroidChecker
 
     msgs = {
         f"R{BASE_ID}00": (
@@ -22,7 +19,7 @@ class XComChecker(checkers.BaseChecker):
         )
     }
 
-    @utils.check_messages("unused-xcom")
+    @utils.only_required_for_messages("unused-xcom")
     def visit_module(self, node: astroid.Module):
         """
         Check for unused XComs.
@@ -37,7 +34,7 @@ class XComChecker(checkers.BaseChecker):
 
         # Store nodes containing python_callable arg as:
         # {task_id: (call node, python_callable func name)}
-        python_callable_nodes = dict()
+        python_callable_nodes = {}
         for call_node in call_nodes:
             if call_node.keywords:
                 task_id = ""
@@ -53,7 +50,7 @@ class XComChecker(checkers.BaseChecker):
                     python_callable_nodes[task_id] = (call_node, python_callable)
 
         # Now fetch the functions mentioned by python_callable args
-        xcoms_pushed = dict()
+        xcoms_pushed = {}
         xcoms_pulled_taskids = set()
         for (task_id, (python_callable, callable_func_name)) in python_callable_nodes.items():
             if callable_func_name != "<lambda>":
@@ -65,7 +62,7 @@ class XComChecker(checkers.BaseChecker):
                     callable_func = node.getattr(callable_func_name)[0]
 
                     # Check if the function returns any values
-                    if any([isinstance(n, astroid.Return) for n in callable_func.body]):
+                    if any(isinstance(n, astroid.Return) for n in callable_func.body):
                         # Found a return statement
                         xcoms_pushed[task_id] = (python_callable, callable_func_name)
 
