@@ -2,7 +2,7 @@
 
 import astroid
 import pytest
-from pylint.testutils import CheckerTestCase, Message
+from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
 
@@ -21,7 +21,7 @@ class TestOperatorChecker(CheckerTestCase):
         expected_message = "different-operator-varname-taskid"
 
         assign_node = astroid.extract_node(testcase)
-        with self.assertAddsMessages(Message(msg_id=expected_message, node=assign_node)):
+        with self.assertAddsMessages(MessageTest(msg_id=expected_message, node=assign_node)):
             self.checker.visit_assign(assign_node)
 
     def test_different_operator_varname_taskid_baseoperator(self):
@@ -36,7 +36,7 @@ class TestOperatorChecker(CheckerTestCase):
         expected_message = "different-operator-varname-taskid"
 
         assign_node = astroid.extract_node(testcase)
-        with self.assertAddsMessages(Message(msg_id=expected_message, node=assign_node)):
+        with self.assertAddsMessages(MessageTest(msg_id=expected_message, node=assign_node)):
             self.checker.visit_assign(assign_node)
 
     def test_different_operator_varname_taskid_valid(self):
@@ -73,7 +73,7 @@ class TestOperatorChecker(CheckerTestCase):
         expected_message = "match-callable-taskid"
 
         assign_node = astroid.extract_node(testcase)
-        with self.assertAddsMessages(Message(msg_id=expected_message, node=assign_node)):
+        with self.assertAddsMessages(MessageTest(msg_id=expected_message, node=assign_node)):
             self.checker.visit_assign(assign_node)
 
     def test_not_match_callable_taskid(self):
@@ -123,7 +123,7 @@ class TestOperatorChecker(CheckerTestCase):
         binop_node = astroid.extract_node(testcase)
 
         if expect_msg:
-            with self.assertAddsMessages(Message(msg_id=message, node=binop_node)):
+            with self.assertAddsMessages(MessageTest(msg_id=message, node=binop_node)):
                 self.checker.visit_binop(binop_node)
         else:
             with self.assertNoMessages():
