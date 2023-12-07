@@ -4,9 +4,9 @@ This script is used by the CI to:
    will be interpreted incorrectly).
 2. For each message type, check if codes start at 0 and increment by 1, e.g. C8300, C8301, ...
 """
-import os
 import re
 from collections import defaultdict
+from pathlib import Path
 from typing import List
 
 from pylint.lint import PyLinter
@@ -45,11 +45,11 @@ def check_if_msg_ids_in_readme(message_ids: List[str]):
     :param List[str] message_ids: All message IDs found in pylint-airflow
     """
 
-    readme_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "../README.rst")
-    with open(readme_path, "r") as readme_:
-        readme = readme_.read()
+    readme_path = Path(__file__).resolve().parent.parent / "README.rst"
+    with open(readme_path, mode="r", encoding="utf-8") as readme_file:
+        readme_text = readme_file.read()
 
-    not_found = [msg_id for msg_id in message_ids if msg_id not in readme]
+    not_found = [msg_id for msg_id in message_ids if msg_id not in readme_text]
     if not_found:
         raise AssertionError(
             f"Message IDs {not_found} not found in README. All message IDs should be documented."

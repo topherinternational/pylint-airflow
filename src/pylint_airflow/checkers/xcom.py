@@ -37,7 +37,7 @@ class XComChecker(checkers.BaseChecker):
 
         # Store nodes containing python_callable arg as:
         # {task_id: (call node, python_callable func name)}
-        python_callable_nodes = dict()
+        python_callable_nodes = {}
         for call_node in call_nodes:
             if call_node.keywords:
                 task_id = ""
@@ -53,7 +53,7 @@ class XComChecker(checkers.BaseChecker):
                     python_callable_nodes[task_id] = (call_node, python_callable)
 
         # Now fetch the functions mentioned by python_callable args
-        xcoms_pushed = dict()
+        xcoms_pushed = {}
         xcoms_pulled_taskids = set()
         for (task_id, (python_callable, callable_func_name)) in python_callable_nodes.items():
             if callable_func_name != "<lambda>":
