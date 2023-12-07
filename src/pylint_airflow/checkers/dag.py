@@ -5,7 +5,6 @@ from typing import Tuple, Union
 
 import astroid
 from pylint import checkers
-from pylint import interfaces
 from pylint.checkers import utils
 from pylint.checkers.utils import safe_infer
 
@@ -14,8 +13,6 @@ from pylint_airflow.__pkginfo__ import BASE_ID
 
 class DagChecker(checkers.BaseChecker):
     """Checks conditions in the context of (a) complete DAG(s)."""
-
-    __implements__ = interfaces.IAstroidChecker
 
     msgs = {
         f"W{BASE_ID}00": (
@@ -57,7 +54,7 @@ class DagChecker(checkers.BaseChecker):
         ),
     }
 
-    @utils.check_messages("duplicate-dag-name", "match-dagid-filename")
+    @utils.only_required_for_messages("duplicate-dag-name", "match-dagid-filename")
     def visit_module(self, node: astroid.Module):
         """Checks in the context of (a) complete DAG(s)."""
         dagids_nodes = defaultdict(list)

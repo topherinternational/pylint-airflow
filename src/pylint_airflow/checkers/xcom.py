@@ -2,7 +2,6 @@
 
 import astroid
 from pylint import checkers
-from pylint import interfaces
 from pylint.checkers import utils
 
 from pylint_airflow.__pkginfo__ import BASE_ID
@@ -10,8 +9,6 @@ from pylint_airflow.__pkginfo__ import BASE_ID
 
 class XComChecker(checkers.BaseChecker):
     """Checks on Airflow XComs."""
-
-    __implements__ = interfaces.IAstroidChecker
 
     msgs = {
         f"R{BASE_ID}00": (
@@ -22,7 +19,7 @@ class XComChecker(checkers.BaseChecker):
         )
     }
 
-    @utils.check_messages("unused-xcom")
+    @utils.only_required_for_messages("unused-xcom")
     def visit_module(self, node: astroid.Module):
         """
         Check for unused XComs.

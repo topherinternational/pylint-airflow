@@ -2,7 +2,6 @@
 
 import astroid
 from pylint import checkers
-from pylint import interfaces
 from pylint.checkers import utils
 from pylint.checkers.utils import safe_infer
 
@@ -11,8 +10,6 @@ from pylint_airflow.__pkginfo__ import BASE_ID
 
 class OperatorChecker(checkers.BaseChecker):
     """Checks on Airflow operators."""
-
-    __implements__ = (interfaces.IAstroidChecker,)
 
     msgs = {
         f"C{BASE_ID}00": (
@@ -52,7 +49,7 @@ class OperatorChecker(checkers.BaseChecker):
         ),
     }
 
-    @utils.check_messages("different-operator-varname-taskid", "match-callable-taskid")
+    @utils.only_required_for_messages("different-operator-varname-taskid", "match-callable-taskid")
     def visit_assign(self, node):
         """
         TODO rewrite this
@@ -95,7 +92,7 @@ class OperatorChecker(checkers.BaseChecker):
                 if python_callable_name and f"_{task_id}" != python_callable_name:
                     self.add_message("match-callable-taskid", node=node)
 
-    @utils.check_messages("mixed-dependency-directions")
+    @utils.only_required_for_messages("mixed-dependency-directions")
     def visit_binop(self, node):
         """Check for mixed dependency directions."""
 

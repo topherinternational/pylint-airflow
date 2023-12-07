@@ -43,7 +43,7 @@ class PylintAirflowLintModuleTest(LintModuleTest):
 
     def check_file(self):
         """Run Pylint on a file."""
-        self._linter.check(self._test_filepath)
+        self._linter.check((self._test_filepath,))
 
         expected_msgs = self._get_expected_messages()
         received_msgs, received_text = self._get_actual()
