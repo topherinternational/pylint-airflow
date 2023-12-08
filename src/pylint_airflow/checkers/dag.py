@@ -57,7 +57,7 @@ class DagChecker(checkers.BaseChecker):
     @staticmethod
     def _find_dag_in_call_node(
         call_node: astroid.Call, func: Union[astroid.Name, astroid.Attribute]
-    ) -> Tuple[Union[str, None], Union[astroid.Assign, astroid.Call, None]]:
+    ) -> Tuple[Union[str, None], Union[astroid.Call, None]]:
         """
         Find DAG in a call_node. Returns (None, None) if no DAG is found.
         :param call_node:
