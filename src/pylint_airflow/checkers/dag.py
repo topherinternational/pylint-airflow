@@ -62,15 +62,16 @@ class DagChecker(checkers.BaseChecker):
         Find DAG in a call_node. Returns (None, None) if no DAG is found.
         :param call_node:
         :param func:
-        :return: (dag_id, node)
+        :return: (dag_id: str, node: astroid.Call)
         :rtype: Tuple
         """
+        # check for both 'DAG(dag_id="mydag")' and e.g. 'models.DAG(dag_id="mydag")'
         if (hasattr(func, "name") and func.name == "DAG") or (
             hasattr(func, "attrname") and func.attrname == "DAG"
         ):
             function_node = safe_infer(func)
             if function_node.is_subtype_of("airflow.models.DAG") or function_node.is_subtype_of(
-                "airflow.models.dag.DAG"
+                "airflow.models.dag.DAG"  # TODO: are both of these subtypes relevant?
             ):
                 # Check for "dag_id" as keyword arg
                 if call_node.keywords is not None:
@@ -79,6 +80,7 @@ class DagChecker(checkers.BaseChecker):
                         if keyword.arg == "dag_id" and isinstance(keyword.value, astroid.Const):
                             return str(keyword.value.value), call_node
 
+                # Check for dag_id as positional arg
                 if call_node.args:
                     if not hasattr(call_node.args[0], "value"):
                         # TODO Support dynamic dag_id. If dag_id is set from variable, it has no value attr.  # pylint: disable=line-too-long
@@ -91,13 +93,17 @@ class DagChecker(checkers.BaseChecker):
     def _dagids_to_deduplicated_nodes(
         dagids_to_nodes: Dict[str, List[astroid.Call]]
     ) -> Dict[str, List[astroid.Call]]:
+        """This utility function transforms the dagids_to_nodes dictionary to make its List
+        values ordered sets - i.e., the list is pruned of duplicate entries while maintaining
+        the original insertion order. This allows the correct duplicate node to be cited by
+        messages that detect duplicate uses of the same dag_id."""
         return {
             dag_id: list(OrderedDict.fromkeys(nodes)) for dag_id, nodes in dagids_to_nodes.items()
         }
 
     @utils.only_required_for_messages("duplicate-dag-name", "match-dagid-filename")
     def visit_module(self, node: astroid.Module):
-        """Checks in the context of (a) complete DAG(s)."""
+        """We must peruse an entire module to detect inter-DAG issues."""
         dagids_to_nodes: Dict[str, List[astroid.Call]] = defaultdict(list)
         assign_nodes = node.nodes_of_class(astroid.Assign)
         with_nodes = node.nodes_of_class(astroid.With)
