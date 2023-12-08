@@ -20,14 +20,25 @@ class TestDuplicateDagName(CheckerTestCase):
         from airflow.models import DAG
         import airflow
 
+        # keyword args
         dag1 = DAG(dag_id="mydag")
         dag2 = DAG(dag_id="mydag")
 
         dag3 = models.DAG(dag_id="lintme")
         dag4 = DAG(dag_id="lintme")
-        
+
         dag5 = airflow.DAG(dag_id="testme")
         dag6 = DAG(dag_id="testme")
+
+        # positional args
+        dag7 = DAG("mydag")
+        dag8 = DAG("mydag")
+
+        dag9 = models.DAG("lintme")
+        dag10 = DAG("lintme")
+
+        dag11 = airflow.DAG("testme")
+        dag12 = DAG("testme")
         """
         ast = astroid.parse(testcase)
         expected_msg_node_1 = ast.body[4].value
