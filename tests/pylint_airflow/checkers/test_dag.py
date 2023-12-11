@@ -32,23 +32,29 @@ class TestDuplicateDagName(CheckerTestCase):
         dag6 = DAG(dag_id="testme")
 
         # positional args
-        dag7 = DAG("mydag")
-        dag8 = DAG("mydag")
+        dag7 = DAG("mydag_pos")
+        dag8 = DAG("mydag_pos")
 
-        dag9 = models.DAG("lintme")
-        dag10 = DAG("lintme")
+        dag9 = models.DAG("lintme_pos")
+        dag10 = DAG("lintme_pos")
 
-        dag11 = airflow.DAG("testme")
-        dag12 = DAG("testme")
+        dag11 = airflow.DAG("testme_pos")
+        dag12 = DAG("testme_pos")
         """
         ast = astroid.parse(testcase)
         expected_msg_node_1 = ast.body[4].value
         expected_msg_node_2 = ast.body[6].value
         expected_msg_node_3 = ast.body[8].value
+        expected_msg_node_4 = ast.body[10].value
+        expected_msg_node_5 = ast.body[12].value
+        expected_msg_node_6 = ast.body[14].value
         with self.assertAddsMessages(
             MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_1, args="mydag"),
             MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_2, args="lintme"),
             MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_3, args="testme"),
+            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_4, args="mydag_pos"),
+            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_5, args="lintme_pos"),
+            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_6, args="testme_pos"),
             ignore_position=True,
         ):
             self.checker.visit_module(ast)
@@ -223,57 +229,73 @@ class TestDagIdsToDeduplicatedNodes:
         assert result == expected_result
 
 
-class TestFindDagInCallNode:
+class TestFindDagInCallNodeHelper:
+
+    # Failure paths
     def test_non_dag_name_call_returns_none(self):
-        test_func = astroid.Name(
-            name="my_func", lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1
-        )
+        test_call: astroid = astroid.extract_node("list([1, 2, 3])  #@")
 
-        test_call = astroid.Call(
-            lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1
-        )
-        test_call.postinit(func=test_func, args=[], keywords=[])
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_func)
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
 
         assert result == (None, None)
 
     def test_non_dag_attribute_call_returns_none(self):
+        test_code = """
+        import datetime
 
-        test_func = astroid.Attribute(
-            attrname="my.other_func",
-            lineno=0,
-            col_offset=0,
-            parent=None,
-            end_lineno=0,
-            end_col_offset=1,
-        )
+        datetime.date()  #@
+        """
+        test_call = astroid.extract_node(test_code)
 
-        test_call = astroid.Call(
-            lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1
-        )
-        test_call.postinit(func=test_func, args=[], keywords=[])
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_func)
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
 
         assert result == (None, None)
 
-    def test_dag_constructor_call_returns(self):
-        test_module = astroid.Module(name="test_module")
-        test_expr = astroid.Expr(
-            lineno=0, col_offset=0, parent=test_module, end_lineno=0, end_col_offset=1
-        )
-        test_call = astroid.Call(
-            lineno=0, col_offset=0, parent=test_expr, end_lineno=0, end_col_offset=1
-        )
-        test_func = astroid.Name(
-            name="list", lineno=0, col_offset=0, parent=test_call, end_lineno=0, end_col_offset=1
-        )
+    # Happy paths
+    def test_dag_name_call_keyword_arg_returns_dag_node(self):
+        test_code = """
+        from airflow.models import DAG
 
-        test_call.postinit(func=test_func, args=[], keywords=[])
-        test_expr.postinit(test_call)
-        test_module.postinit(body=[test_expr])
+        DAG(dag_id="my_dag")  #@
+        """
+        test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call, test_func)
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
 
-        assert result == (None, None)
+        assert result == ("my_dag", test_call)
+
+    def test_dag_attribute_call_keyword_arg_returns_dag_node(self):
+        test_code = """
+        from airflow import models
+
+        models.DAG(dag_id="my_dag")  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == ("my_dag", test_call)
+
+    def test_dag_name_call_positional_arg_returns_dag_node(self):
+        test_code = """
+        from airflow.models import DAG
+
+        DAG("my_dag")  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == ("my_dag", test_call)
+
+    def test_dag_attribute_call_positional_arg_returns_dag_node(self):
+        test_code = """
+        from airflow import models
+
+        models.DAG("my_dag")  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == ("my_dag", test_call)
