@@ -55,7 +55,7 @@ class DagChecker(checkers.BaseChecker):
     }
 
     @staticmethod
-    def _find_dag_in_call_node(
+    def _find_dag_in_call_node(  # TODO: the func argument can be replaced by call_node.func
         call_node: astroid.Call, func: Union[astroid.Name, astroid.Attribute]
     ) -> Tuple[Union[str, None], Union[astroid.Call, None]]:
         """

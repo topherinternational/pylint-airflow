@@ -5,6 +5,7 @@ import pytest
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
+from pylint_airflow.checkers.dag import DagChecker
 
 
 class TestDuplicateDagName(CheckerTestCase):
@@ -189,3 +190,90 @@ class TestDuplicateDagName(CheckerTestCase):
         ast = astroid.parse(testcase)
         with self.assertNoMessages():
             self.checker.visit_module(ast)
+
+
+class TestDagIdsToDeduplicatedNodes:
+    def test_empty_input_returns_empty_output(self):
+        result = DagChecker._dagids_to_deduplicated_nodes({})
+
+        assert result == {}
+
+    def test_unduplicated_values_return_unchanged(self):
+        call_1 = astroid.Call(lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_2 = astroid.Call(lineno=1, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_3 = astroid.Call(lineno=2, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_4 = astroid.Call(lineno=3, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        test_dict = {"dag_1": [call_1, call_2], "dag_2": [call_3, call_4]}
+
+        result = DagChecker._dagids_to_deduplicated_nodes(test_dict)
+
+        assert result == test_dict
+
+    def test_duplicated_values_deduplicate_with_left_priority(self):
+        """ "Left priority" means we keep the leftmost instance of a duplicated entry."""
+        call_1 = astroid.Call(lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_2 = astroid.Call(lineno=1, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_3 = astroid.Call(lineno=2, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_4 = astroid.Call(lineno=3, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        test_dict = {"dag_1": [call_1, call_2, call_1], "dag_2": [call_3, call_4, call_4]}
+
+        result = DagChecker._dagids_to_deduplicated_nodes(test_dict)
+
+        expected_result = {"dag_1": [call_1, call_2], "dag_2": [call_3, call_4]}
+        assert result == expected_result
+
+
+class TestFindDagInCallNode:
+    def test_non_dag_name_call_returns_none(self):
+        test_func = astroid.Name(
+            name="my_func", lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1
+        )
+
+        test_call = astroid.Call(
+            lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1
+        )
+        test_call.postinit(func=test_func, args=[], keywords=[])
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_func)
+
+        assert result == (None, None)
+
+    def test_non_dag_attribute_call_returns_none(self):
+
+        test_func = astroid.Attribute(
+            attrname="my.other_func",
+            lineno=0,
+            col_offset=0,
+            parent=None,
+            end_lineno=0,
+            end_col_offset=1,
+        )
+
+        test_call = astroid.Call(
+            lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1
+        )
+        test_call.postinit(func=test_func, args=[], keywords=[])
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_func)
+
+        assert result == (None, None)
+
+    def test_dag_constructor_call_returns(self):
+        test_module = astroid.Module(name="test_module")
+        test_expr = astroid.Expr(
+            lineno=0, col_offset=0, parent=test_module, end_lineno=0, end_col_offset=1
+        )
+        test_call = astroid.Call(
+            lineno=0, col_offset=0, parent=test_expr, end_lineno=0, end_col_offset=1
+        )
+        test_func = astroid.Name(
+            name="list", lineno=0, col_offset=0, parent=test_call, end_lineno=0, end_col_offset=1
+        )
+
+        test_call.postinit(func=test_func, args=[], keywords=[])
+        test_expr.postinit(test_call)
+        test_module.postinit(body=[test_expr])
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_func)
+
+        assert result == (None, None)
