@@ -63,10 +63,10 @@ class DagChecker(checkers.BaseChecker):
         :param call_node:
         :param func:
         :return: (dag_id: str, node: astroid.Call)
-        :rtype: Tuple
+        :rtype: Tuple  TODO: replace tuple with dataclass
         """
         # check for both 'DAG(dag_id="mydag")' and e.g. 'models.DAG(dag_id="mydag")'
-        if (hasattr(func, "name") and func.name == "DAG") or (
+        if (hasattr(func, "name") and func.name == "DAG") or (  # TODO: use type checks
             hasattr(func, "attrname") and func.attrname == "DAG"
         ):
             function_node = safe_infer(func)
@@ -74,14 +74,14 @@ class DagChecker(checkers.BaseChecker):
                 "airflow.models.dag.DAG"  # TODO: are both of these subtypes relevant?
             ):
                 # Check for "dag_id" as keyword arg
-                if call_node.keywords is not None:
+                if call_node.keywords is not None:  # TODO: can just use 'is not'?
                     for keyword in call_node.keywords:
                         # Only constants supported
                         if keyword.arg == "dag_id" and isinstance(keyword.value, astroid.Const):
                             return str(keyword.value.value), call_node
 
                 # Check for dag_id as positional arg
-                if call_node.args:
+                if call_node.args:  # TODO: unify this with keyword code above
                     if not hasattr(call_node.args[0], "value"):
                         # TODO Support dynamic dag_id. If dag_id is set from variable, it has no value attr.  # pylint: disable=line-too-long
                         return None, None

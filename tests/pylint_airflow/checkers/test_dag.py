@@ -251,6 +251,80 @@ class TestFindDagInCallNodeHelper:
 
         assert result == (None, None)
 
+    def test_dag_name_call_with_no_arg_returns_none(self):
+        test_code = """
+        from airflow.models import DAG
+
+        DAG()  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == (None, None)
+
+    def test_dag_attribute_call_with_no_arg_returns_none(self):
+        test_code = """
+        from airflow import models
+
+        models.DAG()  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == (None, None)
+
+    def test_dag_name_call_with_no_dag_id_keyword_arg_returns_none(self):
+        test_code = """
+        from airflow.models import DAG
+
+        DAG(dag_attr="some_data")  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == (None, None)
+
+    def test_dag_attribute_call_with_no_dag_id_keyword_arg_returns_none(self):
+        test_code = """
+        from airflow import models
+
+        models.DAG(dag_attr="some_data")  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == (None, None)
+
+    def test_dag_name_call_with_variable_keyword_arg_returns_none(self):
+        test_code = """
+        from airflow.models import DAG
+
+        test_id = "my_dag"
+        DAG(dag_id=test_id)  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == (None, None)
+
+    def test_dag_attribute_call_with_variable_keyword_arg_returns_none(self):
+        test_code = """
+        from airflow import models
+
+        test_id = "my_dag"
+        models.DAG(dag_id=test_id)  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == (None, None)
+
     # Happy paths
     def test_dag_name_call_keyword_arg_returns_dag_node(self):
         test_code = """
