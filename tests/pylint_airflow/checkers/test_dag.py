@@ -198,7 +198,9 @@ class TestDuplicateDagName(CheckerTestCase):
             self.checker.visit_module(ast)
 
 
-class TestDagIdsToDeduplicatedNodes:
+class TestDagIdsToDeduplicatedNodes:  # pylint: disable=protected-access,missing-function-docstring
+    """Test the _dagids_to_deduplicated_nodes static helper function."""
+
     def test_empty_input_returns_empty_output(self):
         result = DagChecker._dagids_to_deduplicated_nodes({})
 
@@ -229,7 +231,14 @@ class TestDagIdsToDeduplicatedNodes:
         assert result == expected_result
 
 
-class TestFindDagInCallNodeHelper:
+class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-function-docstring
+    """Test the _find_dag_in_call_node static helper function.
+
+    There are a lot of conditions to test, so we parameterize the happy and failure paths,
+    and write additional test sets for features that haven't yet been written (they fail now,
+    but they should eventually be moved to the happy path tests).
+    """
+
     @pytest.mark.parametrize(
         "test_statement",
         [
