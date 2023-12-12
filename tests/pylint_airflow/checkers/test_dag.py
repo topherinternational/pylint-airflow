@@ -272,8 +272,14 @@ class TestFindDagInCallNodeHelper:
             'test_id = "my_dag"\n        models.DAG(dag_id=test_id)',
             'test_id = "my_dag"\n        DAG(test_id)',
             'test_id = "my_dag"\n        models.DAG(test_id)',
+            'test_id = "my_dag"\n        DAG(dag_id=f"{test_id}_0")',
+            'test_id = "my_dag"\n        models.DAG(dag_id=f"{test_id}_0")',
             'test_id = "my_dag"\n        DAG(f"{test_id}_0")',
             'test_id = "my_dag"\n        models.DAG(f"{test_id}_0")',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(my_id=f"{test_id}_0")',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id=f"{test_id}_0")',  # pylint: disable=line-too-long
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(f"{test_id}_0")',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(f"{test_id}_0")',  # pylint: disable=line-too-long
         ],
         ids=[
             "Non-DAG Name call",
@@ -286,8 +292,14 @@ class TestFindDagInCallNodeHelper:
             "DAG Attribute call with variable dag_id keyword argument",
             "DAG Name call with variable dag_id positional argument",
             "DAG Attribute call with variable dag_id positional argument",
+            "DAG Name call with f-string dag_id keyword argument",
+            "DAG Attribute call with f-string dag_id keyword argument",
             "DAG Name call with f-string dag_id positional argument",
             "DAG Attribute call with f-string dag_id positional argument",
+            "DAG Name call with double-variable dag_id keyword argument",
+            "DAG Attribute call with double-variable dag_id keyword argument",
+            "DAG Name call with double-variable dag_id positional argument",
+            "DAG Attribute call with double-variable dag_id positional argument",
         ],
     )
     def test_invalid_nodes_should_return_none(self, test_statement):
