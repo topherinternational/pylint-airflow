@@ -230,146 +230,75 @@ class TestDagIdsToDeduplicatedNodes:
 
 
 class TestFindDagInCallNodeHelper:
-
-    # Failure paths
-    def test_non_dag_name_call_returns_none(self):
-        test_call: astroid = astroid.extract_node("list([1, 2, 3])  #@")
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == (None, None)
-
-    def test_non_dag_attribute_call_returns_none(self):
-        test_code = """
-        import datetime
-
-        datetime.date()  #@
-        """
-        test_call = astroid.extract_node(test_code)
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == (None, None)
-
-    def test_dag_name_call_with_no_arg_returns_none(self):
-        test_code = """
-        from airflow.models import DAG
-
-        DAG()  #@
-        """
-        test_call = astroid.extract_node(test_code)
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == (None, None)
-
-    def test_dag_attribute_call_with_no_arg_returns_none(self):
-        test_code = """
+    @pytest.mark.parametrize(
+        "test_statement",
+        [
+            'DAG(dag_id="my_dag")',
+            'DAG("my_dag")',
+            'models.DAG(dag_id="my_dag")',
+            'models.DAG("my_dag")',
+        ],
+        ids=[
+            "Name call w/ keyword arg",
+            "Name call w/ positional arg",
+            "Attribute call w/ keyword arg",
+            "Attribute call w/ positional arg",
+        ],
+    )
+    def test_valid_dag_call_should_return_dag_id_and_node(self, test_statement):
+        test_code = f"""
         from airflow import models
-
-        models.DAG()  #@
-        """
-        test_call = astroid.extract_node(test_code)
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == (None, None)
-
-    def test_dag_name_call_with_no_dag_id_keyword_arg_returns_none(self):
-        test_code = """
         from airflow.models import DAG
 
-        DAG(dag_attr="some_data")  #@
+        {test_statement}  #@
         """
-        test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == (None, None)
-
-    def test_dag_attribute_call_with_no_dag_id_keyword_arg_returns_none(self):
-        test_code = """
-        from airflow import models
-
-        models.DAG(dag_attr="some_data")  #@
-        """
-        test_call = astroid.extract_node(test_code)
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == (None, None)
-
-    def test_dag_name_call_with_variable_keyword_arg_returns_none(self):
-        test_code = """
-        from airflow.models import DAG
-
-        test_id = "my_dag"
-        DAG(dag_id=test_id)  #@
-        """
-        test_call = astroid.extract_node(test_code)
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == (None, None)
-
-    def test_dag_attribute_call_with_variable_keyword_arg_returns_none(self):
-        test_code = """
-        from airflow import models
-
-        test_id = "my_dag"
-        models.DAG(dag_id=test_id)  #@
-        """
-        test_call = astroid.extract_node(test_code)
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == (None, None)
-
-    # Happy paths
-    def test_dag_name_call_keyword_arg_returns_dag_node(self):
-        test_code = """
-        from airflow.models import DAG
-
-        DAG(dag_id="my_dag")  #@
-        """
         test_call = astroid.extract_node(test_code)
 
         result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
 
         assert result == ("my_dag", test_call)
 
-    def test_dag_attribute_call_keyword_arg_returns_dag_node(self):
-        test_code = """
+    @pytest.mark.parametrize(
+        "test_statement",
+        [
+            "list([1, 2, 3])",
+            "import datetime\n        datetime.date()",
+            "DAG()",
+            "models.DAG()",
+            'DAG(dag_attr="some_data")',
+            'models.DAG(dag_attr="some_data")',
+            'test_id = "my_dag"\n        DAG(dag_id=test_id)',
+            'test_id = "my_dag"\n        models.DAG(dag_id=test_id)',
+            'test_id = "my_dag"\n        DAG(test_id)',
+            'test_id = "my_dag"\n        models.DAG(test_id)',
+            'test_id = "my_dag"\n        DAG(f"{test_id}_0")',
+            'test_id = "my_dag"\n        models.DAG(f"{test_id}_0")',
+        ],
+        ids=[
+            "Non-DAG Name call",
+            "Non-DAG Attribute call",
+            "DAG Name call with no arguments",
+            "DAG Attribute call with no arguments",
+            "DAG Name call with no dag_id keyword argument",
+            "DAG Attribute call no dag_id keyword argument",
+            "DAG Name call with variable dag_id keyword argument",
+            "DAG Attribute call with variable dag_id keyword argument",
+            "DAG Name call with variable dag_id positional argument",
+            "DAG Attribute call with variable dag_id positional argument",
+            "DAG Name call with f-string dag_id positional argument",
+            "DAG Attribute call with f-string dag_id positional argument",
+        ],
+    )
+    def test_invalid_nodes_should_return_none(self, test_statement):
+        test_code = f"""
         from airflow import models
-
-        models.DAG(dag_id="my_dag")  #@
-        """
-        test_call = astroid.extract_node(test_code)
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == ("my_dag", test_call)
-
-    def test_dag_name_call_positional_arg_returns_dag_node(self):
-        test_code = """
         from airflow.models import DAG
 
-        DAG("my_dag")  #@
+        {test_statement}  #@
         """
         test_call = astroid.extract_node(test_code)
 
         result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
 
-        assert result == ("my_dag", test_call)
-
-    def test_dag_attribute_call_positional_arg_returns_dag_node(self):
-        test_code = """
-        from airflow import models
-
-        models.DAG("my_dag")  #@
-        """
-        test_call = astroid.extract_node(test_code)
-
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
-
-        assert result == ("my_dag", test_call)
+        assert result == (None, None)
