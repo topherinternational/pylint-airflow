@@ -268,6 +268,34 @@ class TestFindDagInCallNodeHelper:
             "models.DAG()",
             'DAG(dag_attr="some_data")',
             'models.DAG(dag_attr="some_data")',
+            "bupkus()",
+        ],
+        ids=[
+            "Non-DAG Name call",
+            "Non-DAG Attribute call",
+            "DAG Name call with no arguments",
+            "DAG Attribute call with no arguments",
+            "DAG Name call with no dag_id keyword argument",
+            "DAG Attribute call no dag_id keyword argument",
+            "Nonsense unbound function name",
+        ],
+    )
+    def test_invalid_nodes_should_return_none(self, test_statement):
+        test_code = f"""
+        from airflow import models
+        from airflow.models import DAG
+
+        {test_statement}  #@
+        """
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == (None, None)
+
+    @pytest.mark.parametrize(
+        "test_statement",
+        [
             'test_id = "my_dag"\n        DAG(dag_id=test_id)',
             'test_id = "my_dag"\n        models.DAG(dag_id=test_id)',
             'test_id = "my_dag"\n        DAG(test_id)',
@@ -280,14 +308,9 @@ class TestFindDagInCallNodeHelper:
             'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id=f"{test_id}_0")',  # pylint: disable=line-too-long
             'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(f"{test_id}_0")',
             'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(f"{test_id}_0")',  # pylint: disable=line-too-long
+            "bupkus()",
         ],
         ids=[
-            "Non-DAG Name call",
-            "Non-DAG Attribute call",
-            "DAG Name call with no arguments",
-            "DAG Attribute call with no arguments",
-            "DAG Name call with no dag_id keyword argument",
-            "DAG Attribute call no dag_id keyword argument",
             "DAG Name call with variable dag_id keyword argument",
             "DAG Attribute call with variable dag_id keyword argument",
             "DAG Name call with variable dag_id positional argument",
@@ -300,15 +323,34 @@ class TestFindDagInCallNodeHelper:
             "DAG Attribute call with double-variable dag_id keyword argument",
             "DAG Name call with double-variable dag_id positional argument",
             "DAG Attribute call with double-variable dag_id positional argument",
+            "Nonsense unbound function name",
         ],
     )
-    def test_invalid_nodes_should_return_none(self, test_statement):
+    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
+    def test_future_work_valid_dag_call_should_return_dag_id_and_node(self, test_statement):
         test_code = f"""
         from airflow import models
         from airflow.models import DAG
 
         {test_statement}  #@
         """
+
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+
+        assert result == ("my_dag", test_call)
+
+    @pytest.mark.xfail(reason="Not yet implemented", raises=AttributeError, strict=True)
+    def test_future_work_unimported_dag_module_should_return_none(self):
+        """Currently, the DAG checker does not null-check before matching the node class type,
+        so if the node inference fails, the type check raises an AttributeError and blows up the
+        checker call. This should be changed to fail gracefully by returning (None, None).
+
+        This test notes the unimplemented behavior; when fixed, the test case should be moved
+        into the failure path test above."""
+        test_code = """DAG("my_dag")  #@"""
+
         test_call = astroid.extract_node(test_code)
 
         result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
