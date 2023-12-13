@@ -1,3 +1,4 @@
+# pylint: disable=missing-function-docstring
 """Tests for the DAG checker."""
 
 import astroid
@@ -368,6 +369,8 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
 
 class TestCheckSingleDagEqualsFilename(CheckerTestCase):
+    """Tests for the match-id-filename method. We use the CheckerTestCase because it makes it
+    easy to set up the checker instance and verify the expected messages."""
 
     CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
