@@ -136,7 +136,7 @@ class DagChecker(checkers.BaseChecker):
                     if dagid and dagnode:  # Checks if there are no Nones
                         dagids_nodes[dagid].append(dagnode)
 
-    def check_single_dag_equals_filename(self, node, dagids_to_nodes) -> None:
+    def check_single_dag_equals_filename(self, node, dagids_to_nodes) -> None:  # TODO: type this
         """Adds a message if the module declares a single DAG AND the dag_id does not match the
         module filename."""
         # Check if single DAG and if equals filename

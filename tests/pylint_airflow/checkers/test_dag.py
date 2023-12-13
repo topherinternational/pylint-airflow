@@ -365,3 +365,87 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
         result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
 
         assert result == (None, None)
+
+
+class TestCheckSingleDagEqualsFilename(CheckerTestCase):
+
+    CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
+
+    def test_single_dag_mismatched_filename_should_message(self):
+        test_code = """
+        from airflow.models import DAG
+
+        test_dag = DAG(dag_id="test_dag")
+        """
+        test_module = astroid.parse(test_code)
+        test_module.file = "my_dag.py"
+        dagids_to_nodes = {"test_dag": [test_module.body[1].value]}
+
+        with self.assertAddsMessages(
+            MessageTest(msg_id="match-dagid-filename", node=test_module),
+            ignore_position=True,
+        ):
+            self.checker.check_single_dag_equals_filename(
+                node=test_module, dagids_to_nodes=dagids_to_nodes
+            )
+
+    @pytest.mark.xfail(reason="bug in method", raises=AssertionError, strict=True)
+    def test_single_dag_matching_filename_should_not_message(self):
+        test_code = """
+        from airflow.models import DAG
+
+        test_dag = DAG(dag_id="test_dag")
+        """
+        test_module = astroid.parse(test_code)
+        test_module.file = "test_dag.py"
+        dagids_to_nodes = {"test_dag": [test_module.body[1].value]}
+
+        with self.assertNoMessages():
+            self.checker.check_single_dag_equals_filename(
+                node=test_module, dagids_to_nodes=dagids_to_nodes
+            )
+
+    def test_single_dag_with_test_node_filename_should_not_message(self):
+        test_code = """
+        from airflow.models import DAG
+
+        test_dag = DAG(dag_id="test_dag")
+        """
+        test_module = astroid.parse(test_code)
+        test_module.file = "<?>"
+        dagids_to_nodes = {"test_dag": [test_module.body[1].value]}
+
+        with self.assertNoMessages():
+            self.checker.check_single_dag_equals_filename(
+                node=test_module, dagids_to_nodes=dagids_to_nodes
+            )
+
+    def test_zero_dags_should_not_message(self):
+        test_code = "list([1, 2, 3])"
+        test_module = astroid.parse(test_code)
+        test_module.file = "<?>"
+        dagids_to_nodes = {}
+
+        with self.assertNoMessages():
+            self.checker.check_single_dag_equals_filename(
+                node=test_module, dagids_to_nodes=dagids_to_nodes
+            )
+
+    def test_multiple_dags_should_not_message(self):
+        test_code = """
+        from airflow.models import DAG
+
+        test_dag = DAG(dag_id="test_dag")
+        test_dag_2 = DAG(dag_id="test_dag_2")
+        """
+        test_module = astroid.parse(test_code)
+        test_module.file = "test_dag.py"
+        dagids_to_nodes = {
+            "test_dag": [test_module.body[1].value],
+            "test_dag_2": [test_module.body[2].value],
+        }
+
+        with self.assertNoMessages():
+            self.checker.check_single_dag_equals_filename(
+                node=test_module, dagids_to_nodes=dagids_to_nodes
+            )
