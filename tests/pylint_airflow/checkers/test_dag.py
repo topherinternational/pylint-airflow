@@ -201,39 +201,6 @@ class TestDuplicateDagName(CheckerTestCase):
             self.checker.visit_module(ast)
 
 
-class TestDagIdsToDeduplicatedNodes:  # pylint: disable=protected-access,missing-function-docstring
-    """Test the _dagids_to_deduplicated_nodes static helper function."""
-
-    def test_empty_input_returns_empty_output(self):
-        result = DagChecker._dagids_to_deduplicated_nodes({})
-
-        assert result == {}
-
-    def test_unduplicated_values_return_unchanged(self):
-        call_1 = astroid.Call(lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
-        call_2 = astroid.Call(lineno=1, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
-        call_3 = astroid.Call(lineno=2, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
-        call_4 = astroid.Call(lineno=3, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
-        test_dict = {"dag_1": [call_1, call_2], "dag_2": [call_3, call_4]}
-
-        result = DagChecker._dagids_to_deduplicated_nodes(test_dict)
-
-        assert result == test_dict
-
-    def test_duplicated_values_deduplicate_with_left_priority(self):
-        """ "Left priority" means we keep the leftmost instance of a duplicated entry."""
-        call_1 = astroid.Call(lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
-        call_2 = astroid.Call(lineno=1, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
-        call_3 = astroid.Call(lineno=2, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
-        call_4 = astroid.Call(lineno=3, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
-        test_dict = {"dag_1": [call_1, call_2, call_1], "dag_2": [call_3, call_4, call_4]}
-
-        result = DagChecker._dagids_to_deduplicated_nodes(test_dict)
-
-        expected_result = {"dag_1": [call_1, call_2], "dag_2": [call_3, call_4]}
-        assert result == expected_result
-
-
 class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-function-docstring
     """Test the _find_dag_in_call_node static helper function.
 
@@ -370,6 +337,102 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
         assert result == (None, None)
 
 
+class TestDagIdsToDeduplicatedNodesHelper:  # pylint: disable=protected-access,missing-function-docstring
+    """Test the _dagids_to_deduplicated_nodes static helper function."""
+
+    def test_empty_input_returns_empty_output(self):
+        result = DagChecker._dagids_to_deduplicated_nodes({})
+
+        assert result == {}
+
+    def test_unduplicated_values_return_unchanged(self):
+        call_1 = astroid.Call(lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_2 = astroid.Call(lineno=1, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_3 = astroid.Call(lineno=2, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_4 = astroid.Call(lineno=3, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        test_dict = {"dag_1": [call_1, call_2], "dag_2": [call_3, call_4]}
+
+        result = DagChecker._dagids_to_deduplicated_nodes(test_dict)
+
+        assert result == test_dict
+
+    def test_duplicated_values_deduplicate_with_left_priority(self):
+        """ "Left priority" means we keep the leftmost instance of a duplicated entry."""
+        call_1 = astroid.Call(lineno=0, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_2 = astroid.Call(lineno=1, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_3 = astroid.Call(lineno=2, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        call_4 = astroid.Call(lineno=3, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
+        test_dict = {"dag_1": [call_1, call_2, call_1], "dag_2": [call_3, call_4, call_4]}
+
+        result = DagChecker._dagids_to_deduplicated_nodes(test_dict)
+
+        expected_result = {"dag_1": [call_1, call_2], "dag_2": [call_3, call_4]}
+        assert result == expected_result
+
+
+class TestFindDagsInAssignments(CheckerTestCase):
+    """Tests for the method that collects DAGs from Assign nodes."""
+
+    CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
+
+    @pytest.fixture()
+    def test_dagids_to_nodes(self) -> Dict[str, List[astroid.Call]]:
+        return defaultdict(list)
+
+    def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
+        self.checker.find_dags_in_assignments([], test_dagids_to_nodes)
+
+        assert test_dagids_to_nodes == {}
+
+    def test_valid_dag_assign_nodes_are_collected_invalid_not_collected(self, test_dagids_to_nodes):
+        """Here we test a variety of assignment nodes:
+        -Valid DAG assignments, by Name and Attribute (should be collected)
+        -Assignment to number (should not be collected)
+        -Assignment to string (should not be collected)
+        -Assignment to function call (should not be collected)
+
+        We also sprinkle in some call nodes in the code, so we can pre-load the dagids_nodes
+        dictionary and verify that:
+        -Existing entries for which there are no assignments are untouched by the method
+        -Existing entries for which there are new assignments are appended instead of overwritten
+        """
+
+        test_code = """
+        from airflow import models
+        from airflow.models import DAG
+
+        not_a_dag = 5
+        not_a_dag_2 = "test_dag"
+        not_a_dag_3 = list([1, 2, 3])
+        test_dag = DAG(dag_id="test_dag")
+        test_dag_2 = DAG(dag_id="test_dag")
+        DAG(dag_id="test_dag_2")
+        DAG(dag_id="test_dag_3")
+        test_dag_3 = DAG(dag_id="test_dag_3")
+        test_dag_4 = models.DAG(dag_id="test_dag")
+        test_dag_5 = DAG(dag_id="test_dag_5")
+        """
+        test_module = astroid.parse(test_code)
+        test_body = test_module.body
+        test_assign_nodes = test_module.nodes_of_class(astroid.Assign)
+
+        # Pre-load dictionary with values to ensure proper append/non-overwrite behavior
+        test_dagids_to_nodes["test_dag_2"].append(test_body[7].value)
+        test_dagids_to_nodes["test_dag_3"].append(test_body[8].value)
+
+        # Prepare expected output
+        expected_dagids_to_nodes = {
+            "test_dag": [test_body[5].value, test_body[6].value, test_body[10].value],
+            "test_dag_2": [test_body[7].value],
+            "test_dag_3": [test_body[8].value, test_body[9].value],
+            "test_dag_5": [test_body[11].value],
+        }
+
+        self.checker.find_dags_in_assignments(test_assign_nodes, test_dagids_to_nodes)
+
+        assert test_dagids_to_nodes == expected_dagids_to_nodes
+
+
 class TestCheckSingleDagEqualsFilename(CheckerTestCase):
     """Tests for the match-id-filename method. We use the CheckerTestCase because it makes it
     easy to set up the checker instance and verify the expected messages."""
@@ -454,66 +517,3 @@ class TestCheckSingleDagEqualsFilename(CheckerTestCase):
             self.checker.check_single_dag_equals_filename(
                 node=test_module, dagids_to_nodes=dagids_to_nodes
             )
-
-
-class TestFindDagsInAssignments(CheckerTestCase):
-    """Tests for the method that collects DAGs from Assign nodes."""
-
-    CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
-
-    @pytest.fixture()
-    def test_dagids_to_nodes(self) -> Dict[str, List[astroid.Call]]:
-        return defaultdict(list)
-
-    def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
-        self.checker.find_dags_in_assignments([], test_dagids_to_nodes)
-
-        assert test_dagids_to_nodes == {}
-
-    def test_valid_dag_assign_nodes_are_collected_invalid_not_collected(self, test_dagids_to_nodes):
-        """Here we test a variety of assignment nodes:
-        -Valid DAG assignments, by Name and Attribute (should be collected)
-        -Assignment to number (should not be collected)
-        -Assignment to string (should not be collected)
-        -Assignment to function call (should not be collected)
-
-        We also sprinkle in some call nodes in the code, so we can pre-load the dagids_nodes
-        dictionary and verify that:
-        -Existing entries for which there are no assignments are untouched by the method
-        -Existing entries for which there are new assignments are appended instead of overwritten
-        """
-
-        test_code = """
-        from airflow import models
-        from airflow.models import DAG
-
-        not_a_dag = 5
-        not_a_dag_2 = "test_dag"
-        not_a_dag_3 = list([1, 2, 3])
-        test_dag = DAG(dag_id="test_dag")
-        test_dag_2 = DAG(dag_id="test_dag")
-        DAG(dag_id="test_dag_2")
-        DAG(dag_id="test_dag_3")
-        test_dag_3 = DAG(dag_id="test_dag_3")
-        test_dag_4 = models.DAG(dag_id="test_dag")
-        test_dag_5 = DAG(dag_id="test_dag_5")
-        """
-        test_module = astroid.parse(test_code)
-        test_body = test_module.body
-        test_assign_nodes = test_module.nodes_of_class(astroid.Assign)
-
-        # Pre-load dictionary with values to ensure proper append/non-overwrite behavior
-        test_dagids_to_nodes["test_dag_2"].append(test_body[7].value)
-        test_dagids_to_nodes["test_dag_3"].append(test_body[8].value)
-
-        # Prepare expected output
-        expected_dagids_to_nodes = {
-            "test_dag": [test_body[5].value, test_body[6].value, test_body[10].value],
-            "test_dag_2": [test_body[7].value],
-            "test_dag_3": [test_body[8].value, test_body[9].value],
-            "test_dag_5": [test_body[11].value],
-        }
-
-        self.checker.find_dags_in_assignments(test_assign_nodes, test_dagids_to_nodes)
-
-        assert test_dagids_to_nodes == expected_dagids_to_nodes
