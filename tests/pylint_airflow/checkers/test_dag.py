@@ -602,5 +602,53 @@ class TestCheckDuplicateDagNames(CheckerTestCase):
 
     CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
-    def test_explore(self):
-        assert False
+    def test_duplicate_dags_should_message_singular_dags_should_not(self):
+        test_code = """
+        from airflow.models import DAG
+
+        test_dag = DAG(dag_id="test_dag")
+        test_dag_2 = DAG(dag_id="test_dag_2")
+        test_dag_a = DAG(dag_id="test_dag")
+        """
+        test_module = astroid.parse(test_code)
+        dagids_to_nodes = {
+            "test_dag": [test_module.body[1].value, test_module.body[3].value],
+            "test_dag_2": [test_module.body[2].value],
+        }
+
+        with self.assertAddsMessages(
+            MessageTest(
+                msg_id="duplicate-dag-name", node=test_module.body[3].value, args="test_dag"
+            ),
+            ignore_position=True,
+        ):
+            self.checker.check_duplicate_dag_names(dagids_to_nodes)
+
+    @pytest.mark.xfail(reason="not yet implemented", raises=AssertionError, strict=True)
+    def test_multi_duplicate_dag_should_message_multiple_times(self):
+        test_code = """
+        from airflow.models import DAG
+
+        test_dag = DAG(dag_id="test_dag")
+        test_dag_2 = DAG(dag_id="test_dag")
+        test_dag_3 = DAG(dag_id="test_dag")
+        """
+        test_module = astroid.parse(test_code)
+        dagids_to_nodes = {
+            "test_dag": [
+                test_module.body[1].value,
+                test_module.body[2].value,
+                test_module.body[3].value,
+            ],
+        }
+
+        with self.assertAddsMessages(
+            MessageTest(
+                msg_id="duplicate-dag-name", node=test_module.body[2].value, args="test_dag"
+            ),
+            MessageTest(
+                msg_id="duplicate-dag-name", node=test_module.body[3].value, args="test_dag"
+            ),
+            ignore_position=True,
+        ):
+            self.checker.check_duplicate_dag_names(dagids_to_nodes)
