@@ -439,8 +439,76 @@ class TestFindDagsInContextManagers(CheckerTestCase):
 
     CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
-    def test_explore(self):
-        assert False
+    def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
+        self.checker.find_dags_in_context_managers([], test_dagids_to_nodes)
+
+        assert test_dagids_to_nodes == {}
+
+    def test_valid_dag_with_nodes_are_collected_invalid_not_collected(self, test_dagids_to_nodes):
+        """Here we test a variety of context manager nodes:
+        -Valid DAG blocks, by Name and Attribute (should be collected)
+        -Function call (temp dir constructor) by context manager
+        -Context manager entering by variable
+
+        We also sprinkle in some call nodes in the code, so we can pre-load the dagids_nodes
+        dictionary and verify that:
+        -Existing entries for which there are no assignments are untouched by the method
+        -Existing entries for which there are new assignments are appended instead of overwritten
+        """
+        test_code = """
+        from airflow import models
+        from airflow.models import DAG
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmpdir:
+            pass
+
+        fo = open(file="bupkis.txt", mode="wt")
+        with fo as fil:
+            pass
+
+        with DAG(dag_id="test_dag"):
+            pass
+
+        with DAG(dag_id="test_dag"):
+            pass
+
+        DAG(dag_id="test_dag_2")
+        DAG(dag_id="test_dag_3")
+
+        with DAG(dag_id="test_dag_3") as dag_3, DAG(dag_id="test_dag_4") as dag_4:
+            pass
+
+        with models.DAG(dag_id="test_dag"):
+            pass
+
+        with DAG(dag_id="test_dag_5"):
+            pass
+        """
+        test_module = astroid.parse(test_code)
+        test_body = test_module.body
+        test_with_nodes = test_module.nodes_of_class(astroid.With)
+
+        # Pre-load dictionary with values to ensure proper append/non-overwrite behavior
+        test_dagids_to_nodes["test_dag_2"].append(test_body[8].value)
+        test_dagids_to_nodes["test_dag_3"].append(test_body[9].value)
+
+        # Prepare expected output
+        expected_dagids_to_nodes = {
+            "test_dag": [
+                test_body[6].items[0][0],
+                test_body[7].items[0][0],
+                test_body[11].items[0][0],
+            ],
+            "test_dag_2": [test_body[8].value],
+            "test_dag_3": [test_body[9].value, test_body[10].items[0][0]],
+            "test_dag_4": [test_body[10].items[1][0]],
+            "test_dag_5": [test_body[12].items[0][0]],
+        }
+
+        self.checker.find_dags_in_context_managers(test_with_nodes, test_dagids_to_nodes)
+
+        assert test_dagids_to_nodes == expected_dagids_to_nodes
 
 
 class TestCheckSingleDagEqualsFilename(CheckerTestCase):

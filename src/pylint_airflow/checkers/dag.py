@@ -130,7 +130,7 @@ class DagChecker(checkers.BaseChecker):
         for with_node in with_nodes:
             for with_item in with_node.items:
                 call_node = with_item[0]
-                if isinstance(call_node, astroid.Call):
+                if isinstance(call_node, astroid.Call):  # TODO: support non-call args (like vars)
                     func = call_node.func
                     dagid, dagnode = self._find_dag_in_call_node(call_node, func)
                     if dagid and dagnode:  # Checks if there are no Nones
