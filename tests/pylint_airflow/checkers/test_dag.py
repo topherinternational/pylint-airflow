@@ -11,6 +11,11 @@ import pylint_airflow
 from pylint_airflow.checkers.dag import DagChecker
 
 
+@pytest.fixture(name="test_dagids_to_nodes")
+def test_dagids_to_nodes_fixture() -> Dict[str, List[astroid.Call]]:
+    return defaultdict(list)
+
+
 class TestDuplicateDagName(CheckerTestCase):
     """Tests for the duplicate-dag-name checker."""
 
@@ -375,10 +380,6 @@ class TestFindDagsInAssignments(CheckerTestCase):
 
     CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
-    @pytest.fixture()
-    def test_dagids_to_nodes(self) -> Dict[str, List[astroid.Call]]:
-        return defaultdict(list)
-
     def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
         self.checker.find_dags_in_assignments([], test_dagids_to_nodes)
 
@@ -431,6 +432,15 @@ class TestFindDagsInAssignments(CheckerTestCase):
         self.checker.find_dags_in_assignments(test_assign_nodes, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == expected_dagids_to_nodes
+
+
+class TestFindDagsInContextManagers(CheckerTestCase):
+    """Tests for the method that collects DAGs from With nodes (context manager blocks)."""
+
+    CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
+
+    def test_explore(self):
+        assert False
 
 
 class TestCheckSingleDagEqualsFilename(CheckerTestCase):
@@ -517,3 +527,12 @@ class TestCheckSingleDagEqualsFilename(CheckerTestCase):
             self.checker.check_single_dag_equals_filename(
                 node=test_module, dagids_to_nodes=dagids_to_nodes
             )
+
+
+class TestCheckDuplicateDagNames(CheckerTestCase):
+    """Tests for the duplicate-dag-name method."""
+
+    CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
+
+    def test_explore(self):
+        assert False
