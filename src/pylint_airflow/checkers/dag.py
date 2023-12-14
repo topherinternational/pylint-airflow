@@ -154,10 +154,11 @@ class DagChecker(checkers.BaseChecker):
 
     def check_duplicate_dag_names(self, dagids_to_nodes) -> None:
         """Adds a message if the module declares two or more DAGs with the same dag_id."""
-        duplicate_dagids = [
-            (dagid, nodes)
-            for dagid, nodes in self._dagids_to_deduplicated_nodes(dagids_to_nodes).items()
-            if len(nodes) >= 2 and dagid is not None
+        duplicate_dags = [
+            (dagid, dag_nodes)
+            for dagid, dag_nodes in self._dagids_to_deduplicated_nodes(dagids_to_nodes).items()
+            if len(dag_nodes) > 1 and dagid is not None
         ]
-        for (dagid, assign_nodes) in duplicate_dagids:
-            self.add_message("duplicate-dag-name", node=assign_nodes[-1], args=dagid)
+        for (dagid, dag_nodes) in duplicate_dags:
+            for dag_node in dag_nodes[1:]:  # all nodes except the first one are duplicates
+                self.add_message("duplicate-dag-name", node=dag_node, args=dagid)
