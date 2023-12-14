@@ -239,7 +239,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+        result = DagChecker._find_dag_in_call_node(test_call)
 
         assert result == DagCallNode("my_dag", test_call)
 
@@ -273,7 +273,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
         """
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+        result = DagChecker._find_dag_in_call_node(test_call)
 
         assert result is None
 
@@ -321,7 +321,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+        result = DagChecker._find_dag_in_call_node(test_call)
 
         assert result == ("my_dag", test_call)
 
@@ -334,7 +334,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
+        result = DagChecker._find_dag_in_call_node(test_call)
 
         assert result is None
 
