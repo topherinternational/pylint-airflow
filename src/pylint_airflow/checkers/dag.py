@@ -1,7 +1,7 @@
 """Checks on Airflow DAGs."""
-
 from collections import defaultdict, OrderedDict
-from typing import Tuple, Union, Dict, List
+from dataclasses import dataclass
+from typing import Union, Dict, List
 
 import astroid
 from pylint import checkers
@@ -9,6 +9,14 @@ from pylint.checkers import utils
 from pylint.checkers.utils import safe_infer
 
 from pylint_airflow.__pkginfo__ import BASE_ID
+
+
+@dataclass
+class DagCallNode:
+    """Data class to hold dag_id and a call node returning a DAG with that dag_id"""
+
+    dag_id: str
+    call_node: astroid.Call
 
 
 class DagChecker(checkers.BaseChecker):
@@ -55,19 +63,20 @@ class DagChecker(checkers.BaseChecker):
     }
 
     @staticmethod
-    def _find_dag_in_call_node(  # TODO: the func argument can be replaced by call_node.func
-        call_node: astroid.Call, func: Union[astroid.Name, astroid.Attribute]
-    ) -> Tuple[Union[str, None], Union[astroid.Call, None]]:
+    def _find_dag_in_call_node(call_node: astroid.Call) -> Union[DagCallNode, None]:
+        # pylint: disable=too-many-nested-blocks
         """
-        Find DAG in a call_node. Returns (None, None) if no DAG is found.
+        Find DAG in a call_node. Returns None if no DAG is found.
         :param call_node:
         :param func:
-        :return: (dag_id: str, node: astroid.Call)
-        :rtype: Tuple  TODO: replace tuple with dataclass
+        :return: DagCallNode of dag_id and call_node
         """
+
+        func = call_node.func
+
         # check for both 'DAG(dag_id="mydag")' and e.g. 'models.DAG(dag_id="mydag")'
-        if (hasattr(func, "name") and func.name == "DAG") or (  # TODO: use type checks
-            hasattr(func, "attrname") and func.attrname == "DAG"
+        if (isinstance(func, astroid.Name) and func.name == "DAG") or (
+            isinstance(func, astroid.Attribute) and func.attrname == "DAG"
         ):
             function_node = safe_infer(func)
             if function_node and (
@@ -76,20 +85,23 @@ class DagChecker(checkers.BaseChecker):
                 # ^ TODO: are both of these subtypes relevant?
             ):
                 # Check for "dag_id" as keyword arg
-                if call_node.keywords is not None:  # TODO: can just use 'is not'?
+                if call_node.keywords:
                     for keyword in call_node.keywords:
-                        # Only constants supported
-                        if keyword.arg == "dag_id" and isinstance(keyword.value, astroid.Const):
-                            return str(keyword.value.value), call_node
+                        # Only constants supported, TODO: support dynamic dag_id
+                        if keyword.arg == "dag_id":
+                            kw_val = keyword.value
+                            if isinstance(kw_val, astroid.Const):
+                                return DagCallNode(str(kw_val.value), call_node)
 
                 # Check for dag_id as positional arg
-                if call_node.args:  # TODO: unify this with keyword code above
-                    if not hasattr(call_node.args[0], "value"):
-                        # TODO Support dynamic dag_id. If dag_id is set from variable, it has no value attr.  # pylint: disable=line-too-long
-                        return None, None
-                    return call_node.args[0].value, call_node
+                if call_node.args:
+                    first_positional_arg = call_node.args[0]
+                    # Only constants supported, TODO: support dynamic dag_id
+                    if isinstance(first_positional_arg, astroid.Const):
+                        return DagCallNode(str(first_positional_arg.value), call_node)
+                    return None
 
-        return None, None
+        return None
 
     @staticmethod
     def _dagids_to_deduplicated_nodes(
@@ -121,10 +133,9 @@ class DagChecker(checkers.BaseChecker):
         dagids_nodes dict."""
         for assign_node in assign_nodes:
             if isinstance(assign_node.value, astroid.Call):
-                func = assign_node.value.func
-                dagid, dagnode = self._find_dag_in_call_node(assign_node.value, func)
-                if dagid and dagnode:  # Checks if there are no Nones
-                    dagids_nodes[dagid].append(dagnode)
+                dag_call_node = self._find_dag_in_call_node(assign_node.value)
+                if dag_call_node:
+                    dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
     def find_dags_in_context_managers(self, with_nodes, dagids_nodes) -> None:
         """Finds calls to DAG constructors in With nodes (context managers) and puts them in the
@@ -133,10 +144,9 @@ class DagChecker(checkers.BaseChecker):
             for with_item in with_node.items:
                 call_node = with_item[0]
                 if isinstance(call_node, astroid.Call):  # TODO: support non-call args (like vars)
-                    func = call_node.func
-                    dagid, dagnode = self._find_dag_in_call_node(call_node, func)
-                    if dagid and dagnode:  # Checks if there are no Nones
-                        dagids_nodes[dagid].append(dagnode)
+                    dag_call_node = self._find_dag_in_call_node(call_node)
+                    if dag_call_node:
+                        dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
     def check_single_dag_equals_filename(
         self, node: astroid.Module, dagids_to_nodes: Dict[str, List[astroid.Call]]
