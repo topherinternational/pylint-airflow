@@ -121,6 +121,7 @@ class DagChecker(checkers.BaseChecker):
         dagids_to_nodes: Dict[str, List[astroid.Call]] = defaultdict(list)
 
         self.collect_dags_in_assignments(node, dagids_to_nodes)
+        self.collect_dags_in_calls(node, dagids_to_nodes)
         self.collect_dags_in_context_managers(node, dagids_to_nodes)
 
         self.check_single_dag_equals_filename(node, dagids_to_nodes)

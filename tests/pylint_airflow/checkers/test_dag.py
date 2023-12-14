@@ -67,7 +67,6 @@ class TestDuplicateDagName(CheckerTestCase):
         ):
             self.checker.visit_module(ast)
 
-    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
     def test_constructed_dags_from_call_should_message(self):
         """Test for multiple DAG instances with identical names; here we test multiple ways of
         importing the DAG constructor."""
@@ -132,7 +131,6 @@ class TestDuplicateDagName(CheckerTestCase):
         ):
             self.checker.visit_module(ast)
 
-    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
     def test_duplicate_dags_should_message_once_for_each_duplicate(self):
         """Test for multiple DAG instances with identical names; here we test all three ways of
         importing the DAG constructor."""
