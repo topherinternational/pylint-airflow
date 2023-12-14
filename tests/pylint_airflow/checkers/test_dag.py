@@ -8,7 +8,7 @@ import pytest
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
-from pylint_airflow.checkers.dag import DagChecker
+from pylint_airflow.checkers.dag import DagChecker, DagCallNode
 
 
 @pytest.fixture(name="test_dagids_to_nodes")
@@ -241,7 +241,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
 
-        assert result == ("my_dag", test_call)
+        assert result == DagCallNode("my_dag", test_call)
 
     @pytest.mark.parametrize(
         "test_statement",
@@ -275,7 +275,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
 
-        assert result == (None, None)
+        assert result is None
 
     @pytest.mark.parametrize(
         "test_statement",
@@ -336,7 +336,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         result = DagChecker._find_dag_in_call_node(test_call, test_call.func)
 
-        assert result == (None, None)
+        assert result is None
 
 
 class TestDagIdsToDeduplicatedNodesHelper:  # pylint: disable=protected-access,missing-function-docstring
