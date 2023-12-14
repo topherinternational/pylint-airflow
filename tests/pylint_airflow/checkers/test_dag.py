@@ -598,6 +598,10 @@ class TestCheckDuplicateDagNames(CheckerTestCase):
 
     CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
+    def test_zero_dags_should_not_message(self):
+        with self.assertNoMessages():
+            self.checker.check_duplicate_dag_names({})
+
     def test_duplicate_dags_should_message_singular_dags_should_not(self):
         test_code = """
         from airflow.models import DAG
@@ -620,7 +624,6 @@ class TestCheckDuplicateDagNames(CheckerTestCase):
         ):
             self.checker.check_duplicate_dag_names(dagids_to_nodes)
 
-    @pytest.mark.xfail(reason="not yet implemented", raises=AssertionError, strict=True)
     def test_multi_duplicate_dag_should_message_multiple_times(self):
         test_code = """
         from airflow.models import DAG
