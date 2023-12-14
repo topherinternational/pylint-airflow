@@ -1,6 +1,6 @@
 """Checks on Airflow DAGs."""
-
 from collections import defaultdict, OrderedDict
+from dataclasses import dataclass
 from typing import Tuple, Union, Dict, List
 
 import astroid
@@ -9,6 +9,12 @@ from pylint.checkers import utils
 from pylint.checkers.utils import safe_infer
 
 from pylint_airflow.__pkginfo__ import BASE_ID
+
+
+@dataclass
+class DagCallNode:
+    dag_id: str
+    call_node: astroid.Call
 
 
 class DagChecker(checkers.BaseChecker):
