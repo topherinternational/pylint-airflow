@@ -328,7 +328,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
     def test_future_work_unimported_dag_module_should_return_none(self):
         """If the code calls a DAG constructor but hasn't imported the appropriate module,
         node inference will fail and return None; we must None-check the inferred node before
-        performing the type check, to avoid an AttributeError. and blows up the checker call.
+        performing the type check, to avoid an AttributeError that blows up the checker call.
         """
         test_code = """DAG("my_dag")  #@"""
 
