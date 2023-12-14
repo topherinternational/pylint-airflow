@@ -64,6 +64,7 @@ class DagChecker(checkers.BaseChecker):
 
     @staticmethod
     def _find_dag_in_call_node(call_node: astroid.Call) -> Union[DagCallNode, None]:
+        # pylint: disable=too-many-nested-blocks
         """
         Find DAG in a call_node. Returns None if no DAG is found.
         :param call_node:
