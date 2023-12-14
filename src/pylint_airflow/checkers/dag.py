@@ -74,8 +74,8 @@ class DagChecker(checkers.BaseChecker):
         func = call_node.func
 
         # check for both 'DAG(dag_id="mydag")' and e.g. 'models.DAG(dag_id="mydag")'
-        if (hasattr(func, "name") and func.name == "DAG") or (  # TODO: use type checks
-            hasattr(func, "attrname") and func.attrname == "DAG"
+        if (isinstance(func, astroid.Name) and func.name == "DAG") or (
+            isinstance(func, astroid.Attribute) and func.attrname == "DAG"
         ):
             function_node = safe_infer(func)
             if function_node and (
