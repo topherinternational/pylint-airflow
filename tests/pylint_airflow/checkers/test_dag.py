@@ -447,6 +447,7 @@ class TestFindDagsInCalls(CheckerTestCase):
         assert test_dagids_to_nodes == {}
 
     def test_valid_dag_call_nodes_are_collected_invalid_not_collected(self, test_dagids_to_nodes):
+        # pylint: disable=protected-access
         """Here we test a variety of Call nodes:
         -Valid DAG constructions, by Name and Attribute (should be collected)
         -Non-DAG function call (should not be collected)
