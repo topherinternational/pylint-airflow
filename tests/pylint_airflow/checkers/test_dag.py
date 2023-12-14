@@ -378,7 +378,10 @@ class TestFindDagsInAssignments(CheckerTestCase):
     CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
     def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
-        self.checker.find_dags_in_assignments([], test_dagids_to_nodes)
+        test_code = "list([1, 2, 3])"
+        test_module = astroid.parse(test_code)
+
+        self.checker.collect_dags_in_assignments(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == {}
 
@@ -412,7 +415,6 @@ class TestFindDagsInAssignments(CheckerTestCase):
         """
         test_module = astroid.parse(test_code)
         test_body = test_module.body
-        test_assign_nodes = test_module.nodes_of_class(astroid.Assign)
 
         # Pre-load dictionary with values to ensure proper append/non-overwrite behavior
         test_dagids_to_nodes["test_dag_2"].append(test_body[7].value)
@@ -426,7 +428,7 @@ class TestFindDagsInAssignments(CheckerTestCase):
             "test_dag_5": [test_body[11].value],
         }
 
-        self.checker.find_dags_in_assignments(test_assign_nodes, test_dagids_to_nodes)
+        self.checker.collect_dags_in_assignments(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == expected_dagids_to_nodes
 
@@ -437,7 +439,10 @@ class TestFindDagsInContextManagers(CheckerTestCase):
     CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
     def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
-        self.checker.find_dags_in_context_managers([], test_dagids_to_nodes)
+        test_code = "list([1, 2, 3])"
+        test_module = astroid.parse(test_code)
+
+        self.checker.collect_dags_in_context_managers(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == {}
 
@@ -484,7 +489,6 @@ class TestFindDagsInContextManagers(CheckerTestCase):
         """
         test_module = astroid.parse(test_code)
         test_body = test_module.body
-        test_with_nodes = test_module.nodes_of_class(astroid.With)
 
         # Pre-load dictionary with values to ensure proper append/non-overwrite behavior
         test_dagids_to_nodes["test_dag_2"].append(test_body[8].value)
@@ -503,7 +507,7 @@ class TestFindDagsInContextManagers(CheckerTestCase):
             "test_dag_5": [test_body[12].items[0][0]],
         }
 
-        self.checker.find_dags_in_context_managers(test_with_nodes, test_dagids_to_nodes)
+        self.checker.collect_dags_in_context_managers(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == expected_dagids_to_nodes
 

@@ -119,27 +119,27 @@ class DagChecker(checkers.BaseChecker):
     def visit_module(self, node: astroid.Module):
         """We must peruse an entire module to detect inter-DAG issues."""
         dagids_to_nodes: Dict[str, List[astroid.Call]] = defaultdict(list)
-        assign_nodes = node.nodes_of_class(astroid.Assign)
-        with_nodes = node.nodes_of_class(astroid.With)
 
-        self.find_dags_in_assignments(assign_nodes, dagids_to_nodes)
-        self.find_dags_in_context_managers(with_nodes, dagids_to_nodes)
+        self.collect_dags_in_assignments(node, dagids_to_nodes)
+        self.collect_dags_in_context_managers(node, dagids_to_nodes)
 
         self.check_single_dag_equals_filename(node, dagids_to_nodes)
         self.check_duplicate_dag_names(dagids_to_nodes)
 
-    def find_dags_in_assignments(self, assign_nodes, dagids_nodes) -> None:
+    def collect_dags_in_assignments(self, module_node: astroid.Module, dagids_nodes) -> None:
         """Finds calls to DAG constructors in Assign nodes and puts them in the
         dagids_nodes dict."""
+        assign_nodes = module_node.nodes_of_class(astroid.Assign)
         for assign_node in assign_nodes:
             if isinstance(assign_node.value, astroid.Call):
                 dag_call_node = self._find_dag_in_call_node(assign_node.value)
                 if dag_call_node:
                     dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
-    def find_dags_in_context_managers(self, with_nodes, dagids_nodes) -> None:
+    def collect_dags_in_context_managers(self, module_node: astroid.Module, dagids_nodes) -> None:
         """Finds calls to DAG constructors in With nodes (context managers) and puts them in the
         dagids_nodes dict."""
+        with_nodes = module_node.nodes_of_class(astroid.With)
         for with_node in with_nodes:
             for with_item in with_node.items:
                 call_node = with_item[0]
