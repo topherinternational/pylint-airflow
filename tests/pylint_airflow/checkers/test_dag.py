@@ -67,7 +67,6 @@ class TestDuplicateDagName(CheckerTestCase):
         ):
             self.checker.visit_module(ast)
 
-    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
     def test_constructed_dags_from_call_should_message(self):
         """Test for multiple DAG instances with identical names; here we test multiple ways of
         importing the DAG constructor."""
@@ -132,7 +131,6 @@ class TestDuplicateDagName(CheckerTestCase):
         ):
             self.checker.visit_module(ast)
 
-    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
     def test_duplicate_dags_should_message_once_for_each_duplicate(self):
         """Test for multiple DAG instances with identical names; here we test all three ways of
         importing the DAG constructor."""
@@ -431,6 +429,67 @@ class TestFindDagsInAssignments(CheckerTestCase):
         self.checker.collect_dags_in_assignments(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == expected_dagids_to_nodes
+
+
+class TestFindDagsInCalls(CheckerTestCase):
+    """Tests for the method that collects DAGs from Call nodes."""
+
+    CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
+
+    def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
+        test_code = "list([1, 2, 3])"
+        test_module = astroid.parse(test_code)
+
+        self.checker.collect_dags_in_calls(test_module, test_dagids_to_nodes)
+
+        assert test_dagids_to_nodes == {}
+
+    def test_valid_dag_call_nodes_are_collected_invalid_not_collected(self, test_dagids_to_nodes):
+        # pylint: disable=protected-access
+        """Here we test a variety of Call nodes:
+        -Valid DAG constructions, by Name and Attribute (should be collected)
+        -Non-DAG function call (should not be collected)
+
+        We also sprinkle in some assign nodes in the code, so we can pre-load the dagids_nodes
+        dictionary and verify that:
+        -Existing entries for which there are no calls are untouched by the method
+        -Existing entries for which there are new calls are appended instead of overwritten
+        """
+
+        test_code = """
+        from airflow import models
+        from airflow.models import DAG
+
+        list([1, 2, 3])
+        DAG(dag_id="test_dag") #3
+        DAG(dag_id="test_dag")
+        test_dag_2 = DAG(dag_id="test_dag_2") #5
+        test_dag_3 = DAG(dag_id="test_dag_3")
+        DAG(dag_id="test_dag_3")
+        models.DAG(dag_id="test_dag")
+        DAG(dag_id="test_dag_5") #9
+        """
+        test_module = astroid.parse(test_code)
+        test_body = test_module.body
+
+        # Pre-load dictionary with values to ensure proper append/non-overwrite behavior
+        test_dagids_to_nodes["test_dag_2"].append(test_body[5].value)
+        test_dagids_to_nodes["test_dag_3"].append(test_body[6].value)
+
+        # Prepare expected output
+        expected_dagids_to_nodes = {
+            "test_dag": [test_body[3].value, test_body[4].value, test_body[8].value],
+            "test_dag_2": [test_body[5].value],
+            "test_dag_3": [test_body[6].value, test_body[7].value],
+            "test_dag_5": [test_body[9].value],
+        }
+
+        self.checker.collect_dags_in_calls(test_module, test_dagids_to_nodes)
+
+        assert (
+            DagChecker._dagids_to_deduplicated_nodes(test_dagids_to_nodes)
+            == expected_dagids_to_nodes
+        )
 
 
 class TestFindDagsInContextManagers(CheckerTestCase):
