@@ -136,6 +136,15 @@ class DagChecker(checkers.BaseChecker):
                 if dag_call_node:
                     dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
+    def collect_dags_in_calls(self, module_node: astroid.Module, dagids_nodes) -> None:
+        """Finds calls to DAG constructors in Call nodes and puts them in the
+        dagids_nodes dict."""
+        call_nodes = module_node.nodes_of_class(astroid.Call)
+        for call_node in call_nodes:
+            dag_call_node = self._find_dag_in_call_node(call_node)
+            if dag_call_node:
+                dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
+
     def collect_dags_in_context_managers(self, module_node: astroid.Module, dagids_nodes) -> None:
         """Finds calls to DAG constructors in With nodes (context managers) and puts them in the
         dagids_nodes dict."""
