@@ -535,7 +535,6 @@ class TestCheckSingleDagEqualsFilename(CheckerTestCase):
                 node=test_module, dagids_to_nodes=dagids_to_nodes
             )
 
-    @pytest.mark.xfail(reason="bug in method", raises=AssertionError, strict=True)
     def test_single_dag_matching_filename_should_not_message(self):
         test_code = """
         from airflow.models import DAG

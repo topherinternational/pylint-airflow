@@ -136,13 +136,15 @@ class DagChecker(checkers.BaseChecker):
                     if dagid and dagnode:  # Checks if there are no Nones
                         dagids_nodes[dagid].append(dagnode)
 
-    def check_single_dag_equals_filename(self, node, dagids_to_nodes) -> None:  # TODO: type this
+    def check_single_dag_equals_filename(
+        self, node: astroid.Module, dagids_to_nodes: Dict[str, List[astroid.Call]]
+    ) -> None:
         """Adds a message if the module declares a single DAG AND the dag_id does not match the
         module filename."""
         # Check if single DAG and if equals filename
         # Unit test nodes have file "<?>"
         if len(dagids_to_nodes) == 1 and node.file != "<?>":
-            dagid = list(self._dagids_to_deduplicated_nodes(dagids_to_nodes).items())[0]
+            dagid = list(self._dagids_to_deduplicated_nodes(dagids_to_nodes).items())[0][0]
             expected_filename = f"{dagid}.py"
             current_filename = node.file.split("/")[-1]
             if expected_filename != current_filename:
