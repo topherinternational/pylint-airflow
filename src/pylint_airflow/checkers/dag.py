@@ -13,6 +13,8 @@ from pylint_airflow.__pkginfo__ import BASE_ID
 
 @dataclass
 class DagCallNode:
+    """Data class to hold dag_id and a call node returning a DAG with that dag_id"""
+
     dag_id: str
     call_node: astroid.Call
 
@@ -65,11 +67,10 @@ class DagChecker(checkers.BaseChecker):
         call_node: astroid.Call, func: Union[astroid.Name, astroid.Attribute]
     ) -> Union[DagCallNode, None]:
         """
-        Find DAG in a call_node. Returns (None, None) if no DAG is found.
+        Find DAG in a call_node. Returns None if no DAG is found.
         :param call_node:
         :param func:
-        :return: (dag_id: str, node: astroid.Call)
-        :rtype: Tuple  TODO: replace tuple with dataclass
+        :return: DagCallNode of dag_id and call_node
         """
         # check for both 'DAG(dag_id="mydag")' and e.g. 'models.DAG(dag_id="mydag")'
         if (hasattr(func, "name") and func.name == "DAG") or (  # TODO: use type checks
