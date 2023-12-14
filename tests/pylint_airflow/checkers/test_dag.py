@@ -325,14 +325,11 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         assert result == ("my_dag", test_call)
 
-    @pytest.mark.xfail(reason="Not yet implemented", raises=AttributeError, strict=True)
     def test_future_work_unimported_dag_module_should_return_none(self):
-        """Currently, the DAG checker does not null-check before matching the node class type,
-        so if the node inference fails, the type check raises an AttributeError and blows up the
-        checker call. This should be changed to fail gracefully by returning (None, None).
-
-        This test notes the unimplemented behavior; when fixed, the test case should be moved
-        into the failure path test above."""
+        """If the code calls a DAG constructor but hasn't imported the appropriate module,
+        node inference will fail and return None; we must None-check the inferred node before
+        performing the type check, to avoid an AttributeError. and blows up the checker call.
+        """
         test_code = """DAG("my_dag")  #@"""
 
         test_call = astroid.extract_node(test_code)
