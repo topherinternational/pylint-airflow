@@ -70,8 +70,10 @@ class DagChecker(checkers.BaseChecker):
             hasattr(func, "attrname") and func.attrname == "DAG"
         ):
             function_node = safe_infer(func)
-            if function_node.is_subtype_of("airflow.models.DAG") or function_node.is_subtype_of(
-                "airflow.models.dag.DAG"  # TODO: are both of these subtypes relevant?
+            if function_node and (
+                function_node.is_subtype_of("airflow.models.DAG")
+                or function_node.is_subtype_of("airflow.models.dag.DAG")
+                # ^ TODO: are both of these subtypes relevant?
             ):
                 # Check for "dag_id" as keyword arg
                 if call_node.keywords is not None:  # TODO: can just use 'is not'?
