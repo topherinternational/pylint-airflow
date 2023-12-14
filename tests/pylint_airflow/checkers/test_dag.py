@@ -8,7 +8,7 @@ import pytest
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
-from pylint_airflow.checkers.dag import DagChecker, DagCallNode
+from pylint_airflow.checkers.dag import DagCallNode, DagChecker
 
 
 @pytest.fixture(name="test_dagids_to_nodes")
