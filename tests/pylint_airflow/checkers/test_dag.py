@@ -296,10 +296,10 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
             'test_id = "my_dag"\n        models.DAG(dag_id=f"{test_id}_0")',
             'test_id = "my_dag"\n        DAG(f"{test_id}_0")',
             'test_id = "my_dag"\n        models.DAG(f"{test_id}_0")',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(my_id=f"{test_id}_0")',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id=f"{test_id}_0")',  # pylint: disable=line-too-long
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(f"{test_id}_0")',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(f"{test_id}_0")',  # pylint: disable=line-too-long
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(dag_id=my_id)',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(dag_id=my_id)',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(my_id)',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id)',
         ],
         ids=[
             "DAG Name call with f-string dag_id keyword argument",
