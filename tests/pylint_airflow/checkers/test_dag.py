@@ -152,9 +152,8 @@ class TestDuplicateDagName(CheckerTestCase):
         ):
             self.checker.visit_module(ast)
 
-    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
     def test_duplicate_dag_id_from_variable_should_message(self):
-        """Test for multiple DAG instances with identical names."""
+        """Test for multiple DAG instances with identical names from variables."""
         testcase = """
         from airflow.models import DAG
 
@@ -162,11 +161,18 @@ class TestDuplicateDagName(CheckerTestCase):
 
         dag1 = DAG(dag_id=dagname)
         dag2 = DAG(dag_id="mydag")
+
+        dagname_2 = "testdag"
+
+        dag3 = DAG(dagname_2)
+        dag4 = DAG("testdag")
         """
         ast = astroid.parse(testcase)
-        expected_msg_node = ast.body[3].value
+        expected_msg_node_1 = ast.body[3].value
+        expected_msg_node_2 = ast.body[6].value
         with self.assertAddsMessages(
-            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node, args="mydag"),
+            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_1, args="mydag"),
+            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node_2, args="testdag"),
             ignore_position=True,
         ):
             self.checker.visit_module(ast)
@@ -219,12 +225,20 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
             'DAG("my_dag")',
             'models.DAG(dag_id="my_dag")',
             'models.DAG("my_dag")',
+            'test_id = "my_dag"\n        DAG(dag_id=test_id)',
+            'test_id = "my_dag"\n        models.DAG(dag_id=test_id)',
+            'test_id = "my_dag"\n        DAG(test_id)',
+            'test_id = "my_dag"\n        models.DAG(test_id)',
         ],
         ids=[
             "Name call w/ keyword arg",
             "Name call w/ positional arg",
             "Attribute call w/ keyword arg",
             "Attribute call w/ positional arg",
+            "DAG Name call with variable dag_id keyword argument",
+            "DAG Attribute call with variable dag_id keyword argument",
+            "DAG Name call with variable dag_id positional argument",
+            "DAG Attribute call with variable dag_id positional argument",
         ],
     )
     def test_valid_dag_call_should_return_dag_id_and_node(self, test_statement):
@@ -278,25 +292,16 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
     @pytest.mark.parametrize(
         "test_statement",
         [
-            'test_id = "my_dag"\n        DAG(dag_id=test_id)',
-            'test_id = "my_dag"\n        models.DAG(dag_id=test_id)',
-            'test_id = "my_dag"\n        DAG(test_id)',
-            'test_id = "my_dag"\n        models.DAG(test_id)',
             'test_id = "my_dag"\n        DAG(dag_id=f"{test_id}_0")',
             'test_id = "my_dag"\n        models.DAG(dag_id=f"{test_id}_0")',
             'test_id = "my_dag"\n        DAG(f"{test_id}_0")',
             'test_id = "my_dag"\n        models.DAG(f"{test_id}_0")',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(my_id=f"{test_id}_0")',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id=f"{test_id}_0")',  # pylint: disable=line-too-long
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(f"{test_id}_0")',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(f"{test_id}_0")',  # pylint: disable=line-too-long
-            "bupkus()",
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(dag_id=my_id)',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(dag_id=my_id)',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(my_id)',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id)',
         ],
         ids=[
-            "DAG Name call with variable dag_id keyword argument",
-            "DAG Attribute call with variable dag_id keyword argument",
-            "DAG Name call with variable dag_id positional argument",
-            "DAG Attribute call with variable dag_id positional argument",
             "DAG Name call with f-string dag_id keyword argument",
             "DAG Attribute call with f-string dag_id keyword argument",
             "DAG Name call with f-string dag_id positional argument",
@@ -305,7 +310,6 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
             "DAG Attribute call with double-variable dag_id keyword argument",
             "DAG Name call with double-variable dag_id positional argument",
             "DAG Attribute call with double-variable dag_id positional argument",
-            "Nonsense unbound function name",
         ],
     )
     @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
@@ -321,7 +325,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         result = DagChecker._find_dag_in_call_node(test_call)
 
-        assert result == ("my_dag", test_call)
+        assert result == DagCallNode("my_dag", test_call)
 
     def test_future_work_unimported_dag_module_should_return_none(self):
         """If the code calls a DAG constructor but hasn't imported the appropriate module,
