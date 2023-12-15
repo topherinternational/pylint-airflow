@@ -103,6 +103,11 @@ class DagChecker(checkers.BaseChecker):
                     # Only constants supported, TODO: support dynamic dag_id
                     if isinstance(first_positional_arg, astroid.Const):
                         return DagCallNode(str(first_positional_arg.value), call_node)
+                    if isinstance(first_positional_arg, astroid.Name):
+                        name_val = safe_infer(first_positional_arg)
+                        if isinstance(name_val, astroid.Const):
+                            return DagCallNode(str(name_val.value), call_node)
+
                     return None
 
         return None
