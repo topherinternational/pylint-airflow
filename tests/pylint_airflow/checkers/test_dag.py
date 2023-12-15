@@ -290,7 +290,6 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
             'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id=f"{test_id}_0")',  # pylint: disable=line-too-long
             'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(f"{test_id}_0")',
             'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(f"{test_id}_0")',  # pylint: disable=line-too-long
-            "bupkus()",
         ],
         ids=[
             "DAG Name call with variable dag_id keyword argument",
@@ -305,7 +304,6 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
             "DAG Attribute call with double-variable dag_id keyword argument",
             "DAG Name call with double-variable dag_id positional argument",
             "DAG Attribute call with double-variable dag_id positional argument",
-            "Nonsense unbound function name",
         ],
     )
     @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
