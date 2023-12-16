@@ -53,6 +53,25 @@ def dag_call_node_from_name(
     return None
 
 
+def dag_call_node_from_joined_string(
+    joined_str_node: astroid.JoinedStr, call_node: astroid.Call
+) -> Optional[DagCallNode]:
+    """Returns a DagCallNode instance with dag_id composed from the elements of the
+    joined_str_node argument, or None if the node value can't be extracted."""
+    dag_id_elements: List[str] = []
+    for js_value in joined_str_node.values:
+        if isinstance(js_value, astroid.FormattedValue):
+            inf_val = safe_infer(js_value.value)
+            if inf_val and isinstance(inf_val, astroid.Const):
+                dag_id_elements.append(str(inf_val.value))
+            else:
+                return None
+        elif isinstance(js_value, astroid.Const):
+            dag_id_elements.append(str(js_value.value))
+    return DagCallNode("".join(dag_id_elements), call_node)
+    # TODO: follow name chains
+
+
 def dag_call_node_from_argument_value(
     argument_value: astroid.NodeNG, call_node: astroid.Call
 ) -> Optional[DagCallNode]:
@@ -61,6 +80,8 @@ def dag_call_node_from_argument_value(
         return dag_call_node_from_const(argument_value, call_node)
     if isinstance(argument_value, astroid.Name):
         return dag_call_node_from_name(argument_value, call_node)
+    if isinstance(argument_value, astroid.JoinedStr):
+        return dag_call_node_from_joined_string(argument_value, call_node)
     return None
 
 
