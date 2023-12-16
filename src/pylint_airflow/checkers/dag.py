@@ -37,6 +37,25 @@ def dag_call_node_from_name(
     return None
 
 
+def dag_call_node_from_joined_string(
+    joined_str_node: astroid.JoinedStr, call_node: astroid.Call
+) -> Optional[DagCallNode]:
+    """Returns a DagCallNode instance with dag_id composed from the elements of the
+    joined_str_node argument, or None if the node value can't be extracted."""
+    dag_id_elements: List[str] = []
+    for js_value in joined_str_node.values:
+        if isinstance(js_value, astroid.FormattedValue):
+            inf_val = safe_infer(js_value.value)
+            if inf_val and isinstance(inf_val, astroid.Const):
+                dag_id_elements.append(str(inf_val.value))
+            else:
+                return None
+        elif isinstance(js_value, astroid.Const):
+            dag_id_elements.append(str(js_value.value))
+    return DagCallNode("".join(dag_id_elements), call_node)
+    # TODO: follow name chains
+
+
 class DagChecker(checkers.BaseChecker):
     """Checks conditions in the context of (a) complete DAG(s)."""
 
@@ -82,7 +101,7 @@ class DagChecker(checkers.BaseChecker):
 
     @staticmethod
     def _find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
-        # pylint: disable=too-many-branches,too-many-nested-blocks,too-many-return-statements
+        # pylint: disable=too-many-nested-blocks,too-many-return-statements
         """
         Find DAG in a call_node. Returns None if no DAG is found.
         :param call_node:
@@ -111,19 +130,10 @@ class DagChecker(checkers.BaseChecker):
                             if isinstance(kw_val, astroid.Name):
                                 return dag_call_node_from_name(kw_val, call_node)
                             if isinstance(kw_val, astroid.JoinedStr):
-                                dag_id_elements: List[str] = []
-                                for val in kw_val.values:
-                                    if isinstance(val, astroid.FormattedValue):
-                                        inf_val = safe_infer(val.value)
-                                        if inf_val and isinstance(inf_val, astroid.Const):
-                                            dag_id_elements.append(str(inf_val.value))
-                                        else:
-                                            return None
-                                    elif isinstance(val, astroid.Const):
-                                        dag_id_elements.append(str(val.value))
-                                return DagCallNode("".join(dag_id_elements), call_node)
+                                return dag_call_node_from_joined_string(kw_val, call_node)
+                            return None
 
-                # Check for dag_id as positional arg
+                # Check for dag_id as positional arg if we didn't find the dag_id keyword arg
                 if call_node.args:
                     first_positional_arg = call_node.args[0]
                     if isinstance(first_positional_arg, astroid.Const):
@@ -131,18 +141,7 @@ class DagChecker(checkers.BaseChecker):
                     if isinstance(first_positional_arg, astroid.Name):
                         return dag_call_node_from_name(first_positional_arg, call_node)
                     if isinstance(first_positional_arg, astroid.JoinedStr):
-                        dag_id_elements: List[str] = []
-                        for val in first_positional_arg.values:
-                            if isinstance(val, astroid.FormattedValue):
-                                inf_val = safe_infer(val.value)
-                                if inf_val and isinstance(inf_val, astroid.Const):
-                                    dag_id_elements.append(str(inf_val.value))
-                                else:
-                                    return None
-                            elif isinstance(val, astroid.Const):
-                                dag_id_elements.append(str(val.value))
-                        return DagCallNode("".join(dag_id_elements), call_node)
-
+                        return dag_call_node_from_joined_string(first_positional_arg, call_node)
                     return None
 
         return None
