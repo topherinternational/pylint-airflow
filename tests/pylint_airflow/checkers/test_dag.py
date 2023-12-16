@@ -177,7 +177,6 @@ class TestDuplicateDagName(CheckerTestCase):
         ):
             self.checker.visit_module(ast)
 
-    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
     def test_duplicate_dag_id_from_f_string_should_message(self):
         """Test for multiple DAG instances with identical names."""
         testcase = """
@@ -191,7 +190,7 @@ class TestDuplicateDagName(CheckerTestCase):
         ast = astroid.parse(testcase)
         expected_msg_node = ast.body[3].value
         with self.assertAddsMessages(
-            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node, args="mydag"),
+            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node, args="mydagfoo"),
             ignore_position=True,
         ):
             self.checker.visit_module(ast)
