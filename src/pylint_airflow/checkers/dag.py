@@ -1,7 +1,7 @@
 """Checks on Airflow DAGs."""
 from collections import defaultdict, OrderedDict
 from dataclasses import dataclass
-from typing import Union, Dict, List
+from typing import Dict, List, Optional
 
 import astroid
 from pylint import checkers
@@ -17,6 +17,81 @@ class DagCallNode:
 
     dag_id: str
     call_node: astroid.Call
+
+
+def dag_call_node_from_const(
+    const_node: astroid.Const, call_node: astroid.Call
+) -> Optional[DagCallNode]:
+    """Returns a DagCallNode instance with dag_id extracted from the const_node argument"""
+    return DagCallNode(str(const_node.value), call_node)
+
+
+def dag_call_node_from_name(
+    name_node: astroid.Name, call_node: astroid.Call
+) -> Optional[DagCallNode]:
+    """Returns a DagCallNode instance with dag_id extracted from the name_node argument,
+    or None if the node value can't be extracted."""
+    name_val = safe_infer(name_node)  # TODO: follow name chains
+    if isinstance(name_val, astroid.Const):
+        return dag_call_node_from_const(name_val, call_node)
+    return None
+
+
+def dag_call_node_from_argument_value(
+    argument_value: astroid.NodeNG, call_node: astroid.Call
+) -> Optional[DagCallNode]:
+    """Detects argument string from Const, Name or JoinedStr (f-string), or None if no match"""
+    if isinstance(argument_value, astroid.Const):
+        return dag_call_node_from_const(argument_value, call_node)
+    if isinstance(argument_value, astroid.Name):
+        return dag_call_node_from_name(argument_value, call_node)
+    return None
+
+
+def is_dag_node_by_name_or_attribute(func: astroid.NodeNG) -> bool:
+    """Check for either 'DAG(dag_id="mydag")' or e.g. 'models.DAG(dag_id="mydag")'"""
+    return (isinstance(func, astroid.Name) and func.name == "DAG") or (
+        isinstance(func, astroid.Attribute) and func.attrname == "DAG"
+    )
+
+
+def is_inferred_value_subtype_of_dag(function_node: Optional[astroid.ClassDef]) -> bool:
+    """Checks class type against DAG class types"""
+    return function_node and (
+        function_node.is_subtype_of("airflow.models.DAG")
+        or function_node.is_subtype_of("airflow.models.dag.DAG")
+        # ^ TODO: are both of these subtypes relevant?
+    )
+
+
+def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
+    """
+    Find DAG in a call_node. Returns None if no DAG is found.
+    :param call_node:
+    :return: DagCallNode of dag_id and call_node
+    """
+
+    func = call_node.func
+
+    if not is_dag_node_by_name_or_attribute(func):
+        return None
+
+    function_node = safe_infer(func)
+    if not is_inferred_value_subtype_of_dag(function_node):
+        return None
+
+    # Check for "dag_id" as keyword arg
+    if call_node.keywords:
+        for keyword in call_node.keywords:
+            if keyword.arg == "dag_id":
+                return dag_call_node_from_argument_value(keyword.value, call_node)
+
+    # Check for dag_id as 0-th positional arg if we didn't find the dag_id keyword arg
+    if call_node.args:
+        return dag_call_node_from_argument_value(call_node.args[0], call_node)
+
+    # if we found neither a keyword arg or a positional arg
+    return None
 
 
 class DagChecker(checkers.BaseChecker):
@@ -63,56 +138,6 @@ class DagChecker(checkers.BaseChecker):
     }
 
     @staticmethod
-    def _find_dag_in_call_node(call_node: astroid.Call) -> Union[DagCallNode, None]:
-        # pylint: disable=too-many-nested-blocks
-        """
-        Find DAG in a call_node. Returns None if no DAG is found.
-        :param call_node:
-        :param func:
-        :return: DagCallNode of dag_id and call_node
-        """
-
-        func = call_node.func
-
-        # check for both 'DAG(dag_id="mydag")' and e.g. 'models.DAG(dag_id="mydag")'
-        if (isinstance(func, astroid.Name) and func.name == "DAG") or (
-            isinstance(func, astroid.Attribute) and func.attrname == "DAG"
-        ):
-            function_node = safe_infer(func)
-            if function_node and (
-                function_node.is_subtype_of("airflow.models.DAG")
-                or function_node.is_subtype_of("airflow.models.dag.DAG")
-                # ^ TODO: are both of these subtypes relevant?
-            ):
-                # Check for "dag_id" as keyword arg
-                if call_node.keywords:
-                    for keyword in call_node.keywords:
-                        # Only constants supported, TODO: support dynamic dag_id
-                        if keyword.arg == "dag_id":
-                            kw_val = keyword.value
-                            if isinstance(kw_val, astroid.Const):
-                                return DagCallNode(str(kw_val.value), call_node)
-                            if isinstance(kw_val, astroid.Name):
-                                name_val = safe_infer(kw_val)
-                                if isinstance(name_val, astroid.Const):
-                                    return DagCallNode(str(name_val.value), call_node)
-
-                # Check for dag_id as positional arg
-                if call_node.args:
-                    first_positional_arg = call_node.args[0]
-                    # Only constants supported, TODO: support dynamic dag_id
-                    if isinstance(first_positional_arg, astroid.Const):
-                        return DagCallNode(str(first_positional_arg.value), call_node)
-                    if isinstance(first_positional_arg, astroid.Name):
-                        name_val = safe_infer(first_positional_arg)
-                        if isinstance(name_val, astroid.Const):
-                            return DagCallNode(str(name_val.value), call_node)
-
-                    return None
-
-        return None
-
-    @staticmethod
     def _dagids_to_deduplicated_nodes(
         dagids_to_nodes: Dict[str, List[astroid.Call]]
     ) -> Dict[str, List[astroid.Call]]:
@@ -142,7 +167,7 @@ class DagChecker(checkers.BaseChecker):
         assign_nodes = module_node.nodes_of_class(astroid.Assign)
         for assign_node in assign_nodes:
             if isinstance(assign_node.value, astroid.Call):
-                dag_call_node = self._find_dag_in_call_node(assign_node.value)
+                dag_call_node = find_dag_in_call_node(assign_node.value)
                 if dag_call_node:
                     dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
@@ -151,7 +176,7 @@ class DagChecker(checkers.BaseChecker):
         dagids_nodes dict."""
         call_nodes = module_node.nodes_of_class(astroid.Call)
         for call_node in call_nodes:
-            dag_call_node = self._find_dag_in_call_node(call_node)
+            dag_call_node = find_dag_in_call_node(call_node)
             if dag_call_node:
                 dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
@@ -163,7 +188,7 @@ class DagChecker(checkers.BaseChecker):
             for with_item in with_node.items:
                 call_node = with_item[0]
                 if isinstance(call_node, astroid.Call):  # TODO: support non-call args (like vars)
-                    dag_call_node = self._find_dag_in_call_node(call_node)
+                    dag_call_node = find_dag_in_call_node(call_node)
                     if dag_call_node:
                         dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
