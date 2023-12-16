@@ -56,6 +56,22 @@ def dag_call_node_from_joined_string(
     # TODO: follow name chains
 
 
+def is_dag_by_name_or_attribute(func: astroid.NodeNG) -> bool:
+    """Check for either 'DAG(dag_id="mydag")' or e.g. 'models.DAG(dag_id="mydag")'"""
+    return (isinstance(func, astroid.Name) and func.name == "DAG") or (
+        isinstance(func, astroid.Attribute) and func.attrname == "DAG"
+    )
+
+
+def is_subtype_of_dag(function_node: Optional[astroid.ClassDef]) -> bool:
+    """Checks class type against DAG class types"""
+    return function_node and (
+        function_node.is_subtype_of("airflow.models.DAG")
+        or function_node.is_subtype_of("airflow.models.dag.DAG")
+        # ^ TODO: are both of these subtypes relevant?
+    )
+
+
 class DagChecker(checkers.BaseChecker):
     """Checks conditions in the context of (a) complete DAG(s)."""
 
@@ -110,40 +126,36 @@ class DagChecker(checkers.BaseChecker):
 
         func = call_node.func
 
-        # check for both 'DAG(dag_id="mydag")' and e.g. 'models.DAG(dag_id="mydag")'
-        if (isinstance(func, astroid.Name) and func.name == "DAG") or (
-            isinstance(func, astroid.Attribute) and func.attrname == "DAG"
-        ):
-            function_node = safe_infer(func)
-            if function_node and (
-                function_node.is_subtype_of("airflow.models.DAG")
-                or function_node.is_subtype_of("airflow.models.dag.DAG")
-                # ^ TODO: are both of these subtypes relevant?
-            ):
-                # Check for "dag_id" as keyword arg
-                if call_node.keywords:
-                    for keyword in call_node.keywords:
-                        if keyword.arg == "dag_id":
-                            kw_val = keyword.value
-                            if isinstance(kw_val, astroid.Const):
-                                return dag_call_node_from_const(kw_val, call_node)
-                            if isinstance(kw_val, astroid.Name):
-                                return dag_call_node_from_name(kw_val, call_node)
-                            if isinstance(kw_val, astroid.JoinedStr):
-                                return dag_call_node_from_joined_string(kw_val, call_node)
-                            return None
+        if not is_dag_by_name_or_attribute(func):
+            return None
 
-                # Check for dag_id as positional arg if we didn't find the dag_id keyword arg
-                if call_node.args:
-                    first_positional_arg = call_node.args[0]
-                    if isinstance(first_positional_arg, astroid.Const):
-                        return dag_call_node_from_const(first_positional_arg, call_node)
-                    if isinstance(first_positional_arg, astroid.Name):
-                        return dag_call_node_from_name(first_positional_arg, call_node)
-                    if isinstance(first_positional_arg, astroid.JoinedStr):
-                        return dag_call_node_from_joined_string(first_positional_arg, call_node)
-                    return None
+        function_node = safe_infer(func)
+        if is_subtype_of_dag(function_node):
+            # Check for "dag_id" as keyword arg
+            if call_node.keywords:
+                for keyword in call_node.keywords:
+                    if keyword.arg == "dag_id":
+                        kw_val = keyword.value
+                        if isinstance(kw_val, astroid.Const):
+                            return dag_call_node_from_const(kw_val, call_node)
+                        if isinstance(kw_val, astroid.Name):
+                            return dag_call_node_from_name(kw_val, call_node)
+                        if isinstance(kw_val, astroid.JoinedStr):
+                            return dag_call_node_from_joined_string(kw_val, call_node)
+                        return None
 
+            # Check for dag_id as positional arg if we didn't find the dag_id keyword arg
+            if call_node.args:
+                first_positional_arg = call_node.args[0]
+                if isinstance(first_positional_arg, astroid.Const):
+                    return dag_call_node_from_const(first_positional_arg, call_node)
+                if isinstance(first_positional_arg, astroid.Name):
+                    return dag_call_node_from_name(first_positional_arg, call_node)
+                if isinstance(first_positional_arg, astroid.JoinedStr):
+                    return dag_call_node_from_joined_string(first_positional_arg, call_node)
+                return None
+
+        # if we found neither a keyword arg or a positional arg
         return None
 
     @staticmethod
