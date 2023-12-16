@@ -296,16 +296,37 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
             'test_id = "my_dag"\n        models.DAG(dag_id=f"{test_id}_0")',
             'test_id = "my_dag"\n        DAG(f"{test_id}_0")',
             'test_id = "my_dag"\n        models.DAG(f"{test_id}_0")',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(dag_id=my_id)',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(dag_id=my_id)',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(my_id)',
-            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id)',
         ],
         ids=[
             "DAG Name call with f-string dag_id keyword argument",
             "DAG Attribute call with f-string dag_id keyword argument",
             "DAG Name call with f-string dag_id positional argument",
             "DAG Attribute call with f-string dag_id positional argument",
+        ],
+    )
+    def test_valid_dag_call_with_variables_should_return_dag_id_and_node(self, test_statement):
+        test_code = f"""
+        from airflow import models
+        from airflow.models import DAG
+
+        {test_statement}  #@
+        """
+
+        test_call = astroid.extract_node(test_code)
+
+        result = DagChecker._find_dag_in_call_node(test_call)
+
+        assert result == DagCallNode("my_dag_0", test_call)
+
+    @pytest.mark.parametrize(
+        "test_statement",
+        [
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(dag_id=my_id)',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(dag_id=my_id)',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(my_id)',
+            'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id)',
+        ],
+        ids=[
             "DAG Name call with double-variable dag_id keyword argument",
             "DAG Attribute call with double-variable dag_id keyword argument",
             "DAG Name call with double-variable dag_id positional argument",
@@ -313,7 +334,9 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
         ],
     )
     @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
-    def test_future_work_valid_dag_call_should_return_dag_id_and_node(self, test_statement):
+    def test_future_work_valid_dag_call_with_variables_should_return_dag_id_and_node(
+        self, test_statement
+    ):
         test_code = f"""
         from airflow import models
         from airflow.models import DAG

@@ -96,6 +96,18 @@ class DagChecker(checkers.BaseChecker):
                                 name_val = safe_infer(kw_val)
                                 if isinstance(name_val, astroid.Const):
                                     return DagCallNode(str(name_val.value), call_node)
+                            if isinstance(kw_val, astroid.JoinedStr):
+                                dag_id_elements: List[str] = []
+                                for val in kw_val.values:
+                                    if isinstance(val, astroid.FormattedValue):
+                                        inf_val = safe_infer(val.value)
+                                        if inf_val and isinstance(inf_val, astroid.Const):
+                                            dag_id_elements.append(str(inf_val.value))
+                                        else:
+                                            return None
+                                    elif isinstance(val, astroid.Const):
+                                        dag_id_elements.append(str(val.value))
+                                return DagCallNode("".join(dag_id_elements), call_node)
 
                 # Check for dag_id as positional arg
                 if call_node.args:
@@ -107,6 +119,18 @@ class DagChecker(checkers.BaseChecker):
                         name_val = safe_infer(first_positional_arg)
                         if isinstance(name_val, astroid.Const):
                             return DagCallNode(str(name_val.value), call_node)
+                    if isinstance(first_positional_arg, astroid.JoinedStr):
+                        dag_id_elements: List[str] = []
+                        for val in first_positional_arg.values:
+                            if isinstance(val, astroid.FormattedValue):
+                                inf_val = safe_infer(val.value)
+                                if inf_val and isinstance(inf_val, astroid.Const):
+                                    dag_id_elements.append(str(inf_val.value))
+                                else:
+                                    return None
+                            elif isinstance(val, astroid.Const):
+                                dag_id_elements.append(str(val.value))
+                        return DagCallNode("".join(dag_id_elements), call_node)
 
                     return None
 
