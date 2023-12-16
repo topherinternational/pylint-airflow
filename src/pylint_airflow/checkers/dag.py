@@ -1,7 +1,7 @@
 """Checks on Airflow DAGs."""
 from collections import defaultdict, OrderedDict
 from dataclasses import dataclass
-from typing import Union, Dict, List
+from typing import Dict, List, Optional
 
 import astroid
 from pylint import checkers
@@ -17,6 +17,24 @@ class DagCallNode:
 
     dag_id: str
     call_node: astroid.Call
+
+
+def dag_call_node_from_const(
+    const_node: astroid.Const, call_node: astroid.Call
+) -> Optional[DagCallNode]:
+    """Returns a DagCallNode instance with dag_id extracted from the const_node argument"""
+    return DagCallNode(str(const_node.value), call_node)
+
+
+def dag_call_node_from_name(
+    name_node: astroid.Name, call_node: astroid.Call
+) -> Optional[DagCallNode]:
+    """Returns a DagCallNode instance with dag_id extracted from the name_node argument,
+    or None if the node value can't be extracted."""
+    name_val = safe_infer(name_node)  # TODO: follow name chains
+    if isinstance(name_val, astroid.Const):
+        return dag_call_node_from_const(name_val, call_node)
+    return None
 
 
 class DagChecker(checkers.BaseChecker):
@@ -63,8 +81,8 @@ class DagChecker(checkers.BaseChecker):
     }
 
     @staticmethod
-    def _find_dag_in_call_node(call_node: astroid.Call) -> Union[DagCallNode, None]:
-        # pylint: disable=too-many-nested-blocks
+    def _find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
+        # pylint: disable=too-many-branches,too-many-nested-blocks,too-many-return-statements
         """
         Find DAG in a call_node. Returns None if no DAG is found.
         :param call_node:
@@ -89,11 +107,9 @@ class DagChecker(checkers.BaseChecker):
                         if keyword.arg == "dag_id":
                             kw_val = keyword.value
                             if isinstance(kw_val, astroid.Const):
-                                return DagCallNode(str(kw_val.value), call_node)
+                                return dag_call_node_from_const(kw_val, call_node)
                             if isinstance(kw_val, astroid.Name):
-                                name_val = safe_infer(kw_val)  # TODO: follow name chains
-                                if isinstance(name_val, astroid.Const):
-                                    return DagCallNode(str(name_val.value), call_node)
+                                return dag_call_node_from_name(kw_val, call_node)
                             if isinstance(kw_val, astroid.JoinedStr):
                                 dag_id_elements: List[str] = []
                                 for val in kw_val.values:
@@ -111,11 +127,9 @@ class DagChecker(checkers.BaseChecker):
                 if call_node.args:
                     first_positional_arg = call_node.args[0]
                     if isinstance(first_positional_arg, astroid.Const):
-                        return DagCallNode(str(first_positional_arg.value), call_node)
-                    if isinstance(first_positional_arg, astroid.Name):  # TODO: follow name chains
-                        name_val = safe_infer(first_positional_arg)
-                        if isinstance(name_val, astroid.Const):
-                            return DagCallNode(str(name_val.value), call_node)
+                        return dag_call_node_from_const(first_positional_arg, call_node)
+                    if isinstance(first_positional_arg, astroid.Name):
+                        return dag_call_node_from_name(first_positional_arg, call_node)
                     if isinstance(first_positional_arg, astroid.JoinedStr):
                         dag_id_elements: List[str] = []
                         for val in first_positional_arg.values:
