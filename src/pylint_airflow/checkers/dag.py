@@ -85,6 +85,36 @@ def is_inferred_value_subtype_of_dag(function_node: Optional[astroid.ClassDef]) 
     )
 
 
+def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
+    """
+    Find DAG in a call_node. Returns None if no DAG is found.
+    :param call_node:
+    :return: DagCallNode of dag_id and call_node
+    """
+
+    func = call_node.func
+
+    if not is_dag_node_by_name_or_attribute(func):
+        return None
+
+    function_node = safe_infer(func)
+    if not is_inferred_value_subtype_of_dag(function_node):
+        return None
+
+    # Check for "dag_id" as keyword arg
+    if call_node.keywords:
+        for keyword in call_node.keywords:
+            if keyword.arg == "dag_id":
+                return dag_call_node_from_argument_value(keyword.value, call_node)
+
+    # Check for dag_id as 0-th positional arg if we didn't find the dag_id keyword arg
+    if call_node.args:
+        return dag_call_node_from_argument_value(call_node.args[0], call_node)
+
+    # if we found neither a keyword arg or a positional arg
+    return None
+
+
 class DagChecker(checkers.BaseChecker):
     """Checks conditions in the context of (a) complete DAG(s)."""
 
@@ -129,36 +159,6 @@ class DagChecker(checkers.BaseChecker):
     }
 
     @staticmethod
-    def _find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
-        """
-        Find DAG in a call_node. Returns None if no DAG is found.
-        :param call_node:
-        :return: DagCallNode of dag_id and call_node
-        """
-
-        func = call_node.func
-
-        if not is_dag_node_by_name_or_attribute(func):
-            return None
-
-        function_node = safe_infer(func)
-        if not is_inferred_value_subtype_of_dag(function_node):
-            return None
-
-        # Check for "dag_id" as keyword arg
-        if call_node.keywords:
-            for keyword in call_node.keywords:
-                if keyword.arg == "dag_id":
-                    return dag_call_node_from_argument_value(keyword.value, call_node)
-
-        # Check for dag_id as 0-th positional arg if we didn't find the dag_id keyword arg
-        if call_node.args:
-            return dag_call_node_from_argument_value(call_node.args[0], call_node)
-
-        # if we found neither a keyword arg or a positional arg
-        return None
-
-    @staticmethod
     def _dagids_to_deduplicated_nodes(
         dagids_to_nodes: Dict[str, List[astroid.Call]]
     ) -> Dict[str, List[astroid.Call]]:
@@ -188,7 +188,7 @@ class DagChecker(checkers.BaseChecker):
         assign_nodes = module_node.nodes_of_class(astroid.Assign)
         for assign_node in assign_nodes:
             if isinstance(assign_node.value, astroid.Call):
-                dag_call_node = self._find_dag_in_call_node(assign_node.value)
+                dag_call_node = find_dag_in_call_node(assign_node.value)
                 if dag_call_node:
                     dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
@@ -197,7 +197,7 @@ class DagChecker(checkers.BaseChecker):
         dagids_nodes dict."""
         call_nodes = module_node.nodes_of_class(astroid.Call)
         for call_node in call_nodes:
-            dag_call_node = self._find_dag_in_call_node(call_node)
+            dag_call_node = find_dag_in_call_node(call_node)
             if dag_call_node:
                 dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
@@ -209,7 +209,7 @@ class DagChecker(checkers.BaseChecker):
             for with_item in with_node.items:
                 call_node = with_item[0]
                 if isinstance(call_node, astroid.Call):  # TODO: support non-call args (like vars)
-                    dag_call_node = self._find_dag_in_call_node(call_node)
+                    dag_call_node = find_dag_in_call_node(call_node)
                     if dag_call_node:
                         dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 

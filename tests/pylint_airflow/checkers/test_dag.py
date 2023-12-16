@@ -8,7 +8,7 @@ import pytest
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
-from pylint_airflow.checkers.dag import DagCallNode, DagChecker
+from pylint_airflow.checkers.dag import DagCallNode, DagChecker, find_dag_in_call_node
 
 
 @pytest.fixture(name="test_dagids_to_nodes")
@@ -250,7 +250,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call)
+        result = find_dag_in_call_node(test_call)
 
         assert result == DagCallNode("my_dag", test_call)
 
@@ -284,7 +284,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
         """
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call)
+        result = find_dag_in_call_node(test_call)
 
         assert result is None
 
@@ -313,7 +313,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call)
+        result = find_dag_in_call_node(test_call)
 
         assert result == DagCallNode("my_dag_0", test_call)
 
@@ -345,7 +345,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call)
+        result = find_dag_in_call_node(test_call)
 
         assert result == DagCallNode("my_dag_0", test_call)
 
@@ -358,7 +358,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call)
+        result = find_dag_in_call_node(test_call)
 
         assert result is None
 
