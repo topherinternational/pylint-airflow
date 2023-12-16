@@ -19,6 +19,22 @@ class DagCallNode:
     call_node: astroid.Call
 
 
+def is_dag_node_by_name_or_attribute(func: astroid.NodeNG) -> bool:
+    """Check for either 'DAG(dag_id="mydag")' or e.g. 'models.DAG(dag_id="mydag")'"""
+    return (isinstance(func, astroid.Name) and func.name == "DAG") or (
+        isinstance(func, astroid.Attribute) and func.attrname == "DAG"
+    )
+
+
+def is_inferred_value_subtype_of_dag(function_node: Optional[astroid.ClassDef]) -> bool:
+    """Checks class type against DAG class types"""
+    return function_node and (
+        function_node.is_subtype_of("airflow.models.DAG")
+        or function_node.is_subtype_of("airflow.models.dag.DAG")
+        # ^ TODO: are both of these subtypes relevant?
+    )
+
+
 def dag_call_node_from_const(
     const_node: astroid.Const, call_node: astroid.Call
 ) -> Optional[DagCallNode]:
@@ -64,25 +80,7 @@ def dag_call_node_from_argument_value(
         return dag_call_node_from_const(argument_value, call_node)
     if isinstance(argument_value, astroid.Name):
         return dag_call_node_from_name(argument_value, call_node)
-    if isinstance(argument_value, astroid.JoinedStr):
-        return dag_call_node_from_joined_string(argument_value, call_node)
     return None
-
-
-def is_dag_node_by_name_or_attribute(func: astroid.NodeNG) -> bool:
-    """Check for either 'DAG(dag_id="mydag")' or e.g. 'models.DAG(dag_id="mydag")'"""
-    return (isinstance(func, astroid.Name) and func.name == "DAG") or (
-        isinstance(func, astroid.Attribute) and func.attrname == "DAG"
-    )
-
-
-def is_inferred_value_subtype_of_dag(function_node: Optional[astroid.ClassDef]) -> bool:
-    """Checks class type against DAG class types"""
-    return function_node and (
-        function_node.is_subtype_of("airflow.models.DAG")
-        or function_node.is_subtype_of("airflow.models.dag.DAG")
-        # ^ TODO: are both of these subtypes relevant?
-    )
 
 
 def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
