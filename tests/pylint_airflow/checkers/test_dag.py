@@ -8,7 +8,7 @@ import pytest
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
-from pylint_airflow.checkers.dag import DagCallNode, DagChecker
+from pylint_airflow.checkers.dag import DagCallNode, DagChecker, find_dag_in_call_node
 
 
 @pytest.fixture(name="test_dagids_to_nodes")
@@ -191,7 +191,7 @@ class TestDuplicateDagName(CheckerTestCase):
         ast = astroid.parse(testcase)
         expected_msg_node = ast.body[3].value
         with self.assertAddsMessages(
-            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node, args="mydag"),
+            MessageTest(msg_id="duplicate-dag-name", node=expected_msg_node, args="mydagfoo"),
             ignore_position=True,
         ):
             self.checker.visit_module(ast)
@@ -251,7 +251,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call)
+        result = find_dag_in_call_node(test_call)
 
         assert result == DagCallNode("my_dag", test_call)
 
@@ -285,7 +285,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
         """
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call)
+        result = find_dag_in_call_node(test_call)
 
         assert result is None
 
@@ -313,7 +313,9 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
         ],
     )
     @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
-    def test_future_work_valid_dag_call_should_return_dag_id_and_node(self, test_statement):
+    def test_future_work_valid_dag_call_with_variables_should_return_dag_id_and_node(
+        self, test_statement
+    ):
         test_code = f"""
         from airflow import models
         from airflow.models import DAG
@@ -323,11 +325,11 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call)
+        result = find_dag_in_call_node(test_call)
 
-        assert result == DagCallNode("my_dag", test_call)
+        assert result == DagCallNode("my_dag_0", test_call)
 
-    def test_future_work_unimported_dag_module_should_return_none(self):
+    def test_unimported_dag_module_should_return_none(self):
         """If the code calls a DAG constructor but hasn't imported the appropriate module,
         node inference will fail and return None; we must None-check the inferred node before
         performing the type check, to avoid an AttributeError that blows up the checker call.
@@ -336,7 +338,7 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
 
         test_call = astroid.extract_node(test_code)
 
-        result = DagChecker._find_dag_in_call_node(test_call)
+        result = find_dag_in_call_node(test_call)
 
         assert result is None
 
