@@ -80,6 +80,8 @@ def dag_call_node_from_argument_value(
         return dag_call_node_from_const(argument_value, call_node)
     if isinstance(argument_value, astroid.Name):
         return dag_call_node_from_name(argument_value, call_node)
+    if isinstance(argument_value, astroid.JoinedStr):
+        return dag_call_node_from_joined_string(argument_value, call_node)
     return None
 
 
