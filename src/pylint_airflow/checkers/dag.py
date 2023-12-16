@@ -68,7 +68,6 @@ class DagChecker(checkers.BaseChecker):
         """
         Find DAG in a call_node. Returns None if no DAG is found.
         :param call_node:
-        :param func:
         :return: DagCallNode of dag_id and call_node
         """
 
@@ -87,13 +86,12 @@ class DagChecker(checkers.BaseChecker):
                 # Check for "dag_id" as keyword arg
                 if call_node.keywords:
                     for keyword in call_node.keywords:
-                        # Only constants supported, TODO: support dynamic dag_id
                         if keyword.arg == "dag_id":
                             kw_val = keyword.value
                             if isinstance(kw_val, astroid.Const):
                                 return DagCallNode(str(kw_val.value), call_node)
                             if isinstance(kw_val, astroid.Name):
-                                name_val = safe_infer(kw_val)
+                                name_val = safe_infer(kw_val)  # TODO: follow name chains
                                 if isinstance(name_val, astroid.Const):
                                     return DagCallNode(str(name_val.value), call_node)
                             if isinstance(kw_val, astroid.JoinedStr):
@@ -112,10 +110,9 @@ class DagChecker(checkers.BaseChecker):
                 # Check for dag_id as positional arg
                 if call_node.args:
                     first_positional_arg = call_node.args[0]
-                    # Only constants supported, TODO: support dynamic dag_id
                     if isinstance(first_positional_arg, astroid.Const):
                         return DagCallNode(str(first_positional_arg.value), call_node)
-                    if isinstance(first_positional_arg, astroid.Name):
+                    if isinstance(first_positional_arg, astroid.Name):  # TODO: follow name chains
                         name_val = safe_infer(first_positional_arg)
                         if isinstance(name_val, astroid.Const):
                             return DagCallNode(str(name_val.value), call_node)
