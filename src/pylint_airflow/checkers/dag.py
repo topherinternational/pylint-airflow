@@ -44,9 +44,28 @@ def value_from_name_node(name_node: astroid.Name) -> Optional[str]:
     """Returns a DagCallNode instance with dag_id extracted from the name_node argument,
     or None if the node value can't be extracted."""
     name_val = safe_infer(name_node)  # TODO: follow name chains
-    if isinstance(name_val, astroid.Const):
-        return value_from_const_node(name_val)
+    if name_val:
+        if isinstance(name_val, astroid.Const):
+            return value_from_const_node(name_val)
+        return None
+
+    # If astroid can't infer the name node value, we will have to walk the tree of assignments
+    dag_id = get_dag_id_from_tree_walk(name_node)
+
     return None
+
+
+def get_dag_id_from_tree_walk(node: astroid.NodeNG) -> Optional[str]:
+    assign_frame_and_nodes = node.lookup(node.name)
+    for assign_name_node in assign_frame_and_nodes[1]:
+        if isinstance(assign_name_node, astroid.AssignName):
+            assign_node = assign_name_node.parent
+            if isinstance(assign_node, astroid.Assign):
+                assign_value = assign_node.value
+                if isinstance(assign_value, astroid.Name):
+                    print(assign_value)
+
+        print(assign_name_node)
 
 
 def value_from_joined_str_node(joined_str_node: astroid.JoinedStr) -> Optional[str]:
