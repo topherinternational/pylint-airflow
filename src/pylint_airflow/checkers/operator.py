@@ -98,6 +98,8 @@ class OperatorChecker(checkers.BaseChecker):
         def invalidname(): print("dosomething")
         mytask = PythonOperator(task_id="mytask", python_callable=invalidname)
         """
+        # TODO: add check to force kwargs for task definitions
+
         if is_assign_call_subtype_of_base_operator(node):
             var_name = node.targets[0].name
             task_id = None

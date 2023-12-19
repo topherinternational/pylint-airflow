@@ -191,6 +191,7 @@ class DagChecker(checkers.BaseChecker):
     @utils.only_required_for_messages("duplicate-dag-name", "match-dagid-filename")
     def visit_module(self, node: astroid.Module):
         """We must peruse an entire module to detect inter-DAG issues."""
+        # TODO: add check to force kwargs for DAG definitions
         dagids_to_nodes: Dict[str, List[astroid.Call]] = defaultdict(list)
 
         self.collect_dags_in_assignments(node, dagids_to_nodes)
