@@ -295,12 +295,28 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
             'test_id = "my_dag"\n        models.DAG(dag_id=f"{test_id}_0")',
             'test_id = "my_dag"\n        DAG(f"{test_id}_0")',
             'test_id = "my_dag"\n        models.DAG(f"{test_id}_0")',
+            'test_id = "my_dag_0"\n        my_id = test_id\n        DAG(dag_id=my_id)',
+            'test_id = "my_dag_0"\n        my_id = test_id\n        models.DAG(dag_id=my_id)',
+            'test_id = "my_dag_0"\n        my_id = test_id\n        DAG(my_id)',
+            'test_id = "my_dag_0"\n        my_id = test_id\n        models.DAG(my_id)',
+            'test_id = "my_dag_0"\n        the_id = test_id\n        my_id = the_id\n        DAG(dag_id=my_id)',  # pylint: disable=line-too-long
+            'test_id = "my_dag_0"\n        the_id = test_id\n        my_id = the_id\n        models.DAG(dag_id=my_id)',  # pylint: disable=line-too-long
+            'test_id = "my_dag_0"\n        the_id = test_id\n        my_id = the_id\n        DAG(my_id)',  # pylint: disable=line-too-long
+            'test_id = "my_dag_0"\n        the_id = test_id\n        my_id = the_id\n        models.DAG(my_id)',  # pylint: disable=line-too-long
         ],
         ids=[
             "DAG Name call with f-string dag_id keyword argument",
             "DAG Attribute call with f-string dag_id keyword argument",
             "DAG Name call with f-string dag_id positional argument",
             "DAG Attribute call with f-string dag_id positional argument",
+            "DAG Name call with double-variable dag_id keyword argument",
+            "DAG Attribute call with double-variable dag_id keyword argument",
+            "DAG Name call with double-variable dag_id positional argument",
+            "DAG Attribute call with double-variable dag_id positional argument",
+            "DAG Name call with triple-variable dag_id keyword argument",
+            "DAG Attribute call with triple-variable dag_id keyword argument",
+            "DAG Name call with triple-variable dag_id positional argument",
+            "DAG Attribute call with triple-variable dag_id positional argument",
         ],
     )
     def test_valid_dag_call_with_variables_should_return_dag_id_and_node(self, test_statement):
@@ -324,12 +340,20 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
             'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(dag_id=my_id)',
             'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        DAG(my_id)',
             'test_id = "my_dag"\n        my_id = f"{test_id}_0"\n        models.DAG(my_id)',
+            'test_id = "my_dag"\n        the_id = f"{test_id}_0"\n        my_id = the_id\n        DAG(dag_id=my_id)',  # pylint: disable=line-too-long
+            'test_id = "my_dag"\n        the_id = f"{test_id}_0"\n        my_id = the_id\n        models.DAG(dag_id=my_id)',  # pylint: disable=line-too-long
+            'test_id = "my_dag"\n        the_id = f"{test_id}_0"\n        my_id = the_id\n        DAG(my_id)',  # pylint: disable=line-too-long
+            'test_id = "my_dag"\n        the_id = f"{test_id}_0"\n        my_id = the_id\n        models.DAG(my_id)',  # pylint: disable=line-too-long
         ],
         ids=[
-            "DAG Name call with double-variable dag_id keyword argument",
-            "DAG Attribute call with double-variable dag_id keyword argument",
-            "DAG Name call with double-variable dag_id positional argument",
-            "DAG Attribute call with double-variable dag_id positional argument",
+            "DAG Name call with double-variable f-string dag_id keyword argument",
+            "DAG Attribute call with double-variable f-string dag_id keyword argument",
+            "DAG Name call with double-variable f-string dag_id positional argument",
+            "DAG Attribute call with double-variable f-string dag_id positional argument",
+            "DAG Name call with triple-variable f-string dag_id keyword argument",
+            "DAG Attribute call with triple-variable f-string dag_id keyword argument",
+            "DAG Name call with triple-variable f-string dag_id positional argument",
+            "DAG Attribute call with triple-variable f-string dag_id positional argument",
         ],
     )
     @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
