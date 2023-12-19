@@ -66,9 +66,7 @@ def value_from_joined_str_node(joined_str_node: astroid.JoinedStr) -> Optional[s
     # TODO: follow name chains
 
 
-def dag_call_node_from_argument_value(
-    argument_value: astroid.NodeNG, call_node: astroid.Call
-) -> Optional[DagCallNode]:
+def dag_id_from_argument_value(argument_value: astroid.NodeNG) -> Optional[str]:
     """Detects argument string from Const, Name or JoinedStr (f-string), or None if no match"""
     val = None
     if isinstance(argument_value, astroid.Const):
@@ -78,9 +76,8 @@ def dag_call_node_from_argument_value(
     elif isinstance(argument_value, astroid.JoinedStr):
         val = value_from_joined_str_node(argument_value)
 
-    if not val:  # if we didn't get a real value from the chain above
-        return None
-    return DagCallNode(val, call_node)
+    # if we didn't get a real value from the chain above, val will remain None
+    return val
 
 
 def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
@@ -103,11 +100,13 @@ def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
     if call_node.keywords:
         for keyword in call_node.keywords:
             if keyword.arg == "dag_id":
-                return dag_call_node_from_argument_value(keyword.value, call_node)
+                dag_id = dag_id_from_argument_value(keyword.value)
+                return DagCallNode(dag_id, call_node) if dag_id else None
 
     # Check for dag_id as 0-th positional arg if we didn't find the dag_id keyword arg
     if call_node.args:
-        return dag_call_node_from_argument_value(call_node.args[0], call_node)
+        dag_id = dag_id_from_argument_value(call_node.args[0])
+        return DagCallNode(dag_id, call_node) if dag_id else None
 
     # if we found neither a keyword arg or a positional arg
     return None
