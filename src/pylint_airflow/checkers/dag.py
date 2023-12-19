@@ -62,12 +62,9 @@ def get_name_node_value_from_assignments(node: astroid.Name) -> Optional[str]:
             assign_node = assign_name_node.parent
             if isinstance(assign_node, astroid.Assign):
                 assign_value = assign_node.value
-                if isinstance(assign_value, astroid.JoinedStr):
-                    return value_from_joined_str_node(assign_value)
-                if isinstance(assign_value, astroid.Name):
-                    return value_from_name_node(assign_value)
+                return dag_id_from_argument_value(assign_value)
 
-        # If we drop out of any of if blocks, we give up
+        # If we drop out of any of 'if' blocks, we give up
         return None
 
 
