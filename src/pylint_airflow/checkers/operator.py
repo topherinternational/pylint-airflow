@@ -104,11 +104,25 @@ class OperatorChecker(checkers.BaseChecker):
                     if keyword.arg == "python_callable":
                         python_callable_name = keyword.value.name
 
-                if var_name != task_id:
-                    self.add_message("different-operator-varname-taskid", node=node)
+                self.check_operator_varname_versus_task_id(node, var_name, task_id)
 
-                if python_callable_name and f"_{task_id}" != python_callable_name:
-                    self.add_message("match-callable-taskid", node=node)
+                self.check_callable_name_versus_task_id(node, python_callable_name, task_id)
+
+    def check_operator_varname_versus_task_id(
+        self, node: astroid.Assign, var_name: str, task_id: str
+    ) -> None:
+        """Adds a message if the assigned variable name and the task ID do not match.
+        A message is not added if either string argument is empty ("") or None."""
+        if var_name and task_id and var_name != task_id:
+            self.add_message("different-operator-varname-taskid", node=node)
+
+    def check_callable_name_versus_task_id(
+        self, node: astroid.Assign, python_callable_name: str, task_id: str
+    ):
+        """Adds a message if the callable name and the task ID prefixed with an underscore
+        do not match. A message is not added if either string argument is empty ("") or None."""
+        if python_callable_name and task_id and f"_{task_id}" != python_callable_name:
+            self.add_message("match-callable-taskid", node=node)
 
     @utils.only_required_for_messages("mixed-dependency-directions")
     def visit_binop(self, node):
