@@ -50,9 +50,7 @@ def value_from_name_node(name_node: astroid.Name) -> Optional[str]:
         return None
 
     # If astroid can't infer the name node value, we will have to walk the tree of assignments
-    dag_id = get_dag_id_from_tree_walk(name_node)
-
-    return None
+    return get_dag_id_from_tree_walk(name_node)
 
 
 def get_dag_id_from_tree_walk(node: astroid.NodeNG) -> Optional[str]:
@@ -62,8 +60,10 @@ def get_dag_id_from_tree_walk(node: astroid.NodeNG) -> Optional[str]:
             assign_node = assign_name_node.parent
             if isinstance(assign_node, astroid.Assign):
                 assign_value = assign_node.value
-                if isinstance(assign_value, astroid.Name):
-                    print(assign_value)
+                if isinstance(assign_value, astroid.JoinedStr):
+                    return value_from_joined_str_node(assign_value)
+                # if isinstance(assign_value, astroid.Name):
+                #     return value_from_name_node(assign_value)
 
         print(assign_name_node)
 
