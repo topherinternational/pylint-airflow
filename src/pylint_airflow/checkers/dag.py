@@ -35,27 +35,21 @@ def is_inferred_value_subtype_of_dag(function_node: Optional[astroid.ClassDef]) 
     )
 
 
-def dag_call_node_from_const(
-    const_node: astroid.Const, call_node: astroid.Call
-) -> Optional[DagCallNode]:
+def value_from_const_node(const_node: astroid.Const) -> Optional[str]:
     """Returns a DagCallNode instance with dag_id extracted from the const_node argument"""
-    return DagCallNode(str(const_node.value), call_node)
+    return str(const_node.value)
 
 
-def dag_call_node_from_name(
-    name_node: astroid.Name, call_node: astroid.Call
-) -> Optional[DagCallNode]:
+def value_from_name_node(name_node: astroid.Name) -> Optional[str]:
     """Returns a DagCallNode instance with dag_id extracted from the name_node argument,
     or None if the node value can't be extracted."""
     name_val = safe_infer(name_node)  # TODO: follow name chains
     if isinstance(name_val, astroid.Const):
-        return dag_call_node_from_const(name_val, call_node)
+        return value_from_const_node(name_val)
     return None
 
 
-def dag_call_node_from_joined_string(
-    joined_str_node: astroid.JoinedStr, call_node: astroid.Call
-) -> Optional[DagCallNode]:
+def value_from_joined_str_node(joined_str_node: astroid.JoinedStr) -> Optional[str]:
     """Returns a DagCallNode instance with dag_id composed from the elements of the
     joined_str_node argument, or None if the node value can't be extracted."""
     dag_id_elements: List[str] = []
@@ -68,7 +62,7 @@ def dag_call_node_from_joined_string(
                 return None
         elif isinstance(js_value, astroid.Const):
             dag_id_elements.append(str(js_value.value))
-    return DagCallNode("".join(dag_id_elements), call_node)
+    return "".join(dag_id_elements)
     # TODO: follow name chains
 
 
@@ -76,13 +70,17 @@ def dag_call_node_from_argument_value(
     argument_value: astroid.NodeNG, call_node: astroid.Call
 ) -> Optional[DagCallNode]:
     """Detects argument string from Const, Name or JoinedStr (f-string), or None if no match"""
+    val = None
     if isinstance(argument_value, astroid.Const):
-        return dag_call_node_from_const(argument_value, call_node)
-    if isinstance(argument_value, astroid.Name):
-        return dag_call_node_from_name(argument_value, call_node)
-    if isinstance(argument_value, astroid.JoinedStr):
-        return dag_call_node_from_joined_string(argument_value, call_node)
-    return None
+        val = value_from_const_node(argument_value)
+    elif isinstance(argument_value, astroid.Name):
+        val = value_from_name_node(argument_value)
+    elif isinstance(argument_value, astroid.JoinedStr):
+        val = value_from_joined_str_node(argument_value)
+
+    if not val:  # if we didn't get a real value from the chain above
+        return None
+    return DagCallNode(val, call_node)
 
 
 def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
