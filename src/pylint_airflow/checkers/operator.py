@@ -62,6 +62,23 @@ def collect_operators_from_binops(working_node: astroid.BinOp) -> Set[str]:
     return binops_found
 
 
+def is_assign_call_subtype_of_base_operator(node: astroid.Assign) -> bool:
+    if not isinstance(node.value, astroid.Call):
+        return False
+
+    function_node = safe_infer(node.value.func)
+    return (
+        function_node
+        and not isinstance(function_node, astroid.bases.BoundMethod)
+        and hasattr(function_node, "is_subtype_of")
+        and (
+            function_node.is_subtype_of("airflow.models.BaseOperator")
+            or function_node.is_subtype_of("airflow.models.baseoperator.BaseOperator")
+            # ^ TODO: are both of these subtypes relevant?
+        )
+    )
+
+
 class OperatorChecker(checkers.BaseChecker):
     """Checks on Airflow operators."""
 
@@ -81,32 +98,22 @@ class OperatorChecker(checkers.BaseChecker):
         def invalidname(): print("dosomething")
         mytask = PythonOperator(task_id="mytask", python_callable=invalidname)
         """
-        if isinstance(node.value, astroid.Call):
-            function_node = safe_infer(node.value.func)
-            if (
-                function_node is not None
-                and not isinstance(function_node, astroid.bases.BoundMethod)
-                and hasattr(function_node, "is_subtype_of")
-                and (
-                    function_node.is_subtype_of("airflow.models.BaseOperator")
-                    or function_node.is_subtype_of("airflow.models.baseoperator.BaseOperator")
-                )
-            ):
-                var_name = node.targets[0].name
-                task_id = None
-                python_callable_name = None
+        if is_assign_call_subtype_of_base_operator(node):
+            var_name = node.targets[0].name
+            task_id = None
+            python_callable_name = None
 
-                for keyword in node.value.keywords:
-                    if keyword.arg == "task_id" and isinstance(keyword.value, astroid.Const):
-                        # TODO support other values than constants
-                        task_id = keyword.value.value
-                        continue
-                    if keyword.arg == "python_callable":
-                        python_callable_name = keyword.value.name
+            for keyword in node.value.keywords:
+                if keyword.arg == "task_id" and isinstance(keyword.value, astroid.Const):
+                    # TODO support other values than constants
+                    task_id = keyword.value.value
+                    continue
+                if keyword.arg == "python_callable":
+                    python_callable_name = keyword.value.name
 
-                self.check_operator_varname_versus_task_id(node, var_name, task_id)
+            self.check_operator_varname_versus_task_id(node, var_name, task_id)
 
-                self.check_callable_name_versus_task_id(node, python_callable_name, task_id)
+            self.check_callable_name_versus_task_id(node, python_callable_name, task_id)
 
     def check_operator_varname_versus_task_id(
         self, node: astroid.Assign, var_name: str, task_id: str
