@@ -7,6 +7,44 @@ from pylint.checkers.utils import safe_infer
 
 from pylint_airflow.__pkginfo__ import BASE_ID
 
+OPERATOR_CHECKER_MSGS = {
+    f"C{BASE_ID}00": (
+        "Operator variable name and task_id argument should match",
+        "different-operator-varname-taskid",
+        "For consistency assign the same variable name and task_id to operators.",
+    ),
+    f"C{BASE_ID}01": (
+        "Name the python_callable function '_[task_id]'",
+        "match-callable-taskid",
+        "For consistency name the callable function '_[task_id]', e.g. "
+        "PythonOperator(task_id='mytask', python_callable=_mytask).",
+    ),
+    f"C{BASE_ID}02": (
+        "Avoid mixing task dependency directions",
+        "mixed-dependency-directions",
+        "For consistency don't mix directions in a single statement, instead split "
+        "over multiple statements.",
+    ),
+    f"C{BASE_ID}03": (
+        "TODO Task {} has no dependencies. Verify or disable message.",
+        "task-no-dependencies",
+        "TODO Sometimes a task without any dependency is desired, however often it is "
+        "the result of a forgotten dependency.",
+    ),
+    f"C{BASE_ID}04": (
+        "TODO Rename **kwargs variable to **context to show intent for Airflow task context",
+        "task-context-argname",
+        "TODO Indicate you expect Airflow task context variables in the **kwargs "
+        "argument by renaming to **context.",
+    ),
+    f"C{BASE_ID}05": (
+        "TODO Extract variables from keyword arguments for explicitness",
+        "task-context-separate-arg",
+        "TODO To avoid unpacking kwargs from the Airflow task context in a function, you "
+        "can set the needed variables as arguments in the function.",
+    ),
+}
+
 
 def collect_binops(working_node: astroid.BinOp):
     """
@@ -26,43 +64,7 @@ def collect_binops(working_node: astroid.BinOp):
 class OperatorChecker(checkers.BaseChecker):
     """Checks on Airflow operators."""
 
-    msgs = {
-        f"C{BASE_ID}00": (
-            "Operator variable name and task_id argument should match",
-            "different-operator-varname-taskid",
-            "For consistency assign the same variable name and task_id to operators.",
-        ),
-        f"C{BASE_ID}01": (
-            "Name the python_callable function '_[task_id]'",
-            "match-callable-taskid",
-            "For consistency name the callable function '_[task_id]', e.g. "
-            "PythonOperator(task_id='mytask', python_callable=_mytask).",
-        ),
-        f"C{BASE_ID}02": (
-            "Avoid mixing task dependency directions",
-            "mixed-dependency-directions",
-            "For consistency don't mix directions in a single statement, instead split "
-            "over multiple statements.",
-        ),
-        f"C{BASE_ID}03": (
-            "Task {} has no dependencies. Verify or disable message.",
-            "task-no-dependencies",
-            "Sometimes a task without any dependency is desired, however often it is "
-            "the result of a forgotten dependency.",
-        ),
-        f"C{BASE_ID}04": (
-            "Rename **kwargs variable to **context to show intent for Airflow task context",
-            "task-context-argname",
-            "Indicate you expect Airflow task context variables in the **kwargs "
-            "argument by renaming to **context.",
-        ),
-        f"C{BASE_ID}05": (
-            "Extract variables from keyword arguments for explicitness",
-            "task-context-separate-arg",
-            "To avoid unpacking kwargs from the Airflow task context in a function, you "
-            "can set the needed variables as arguments in the function.",
-        ),
-    }
+    msgs = OPERATOR_CHECKER_MSGS
 
     @utils.only_required_for_messages("different-operator-varname-taskid", "match-callable-taskid")
     def visit_assign(self, node):
