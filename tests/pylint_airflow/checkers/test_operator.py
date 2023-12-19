@@ -97,6 +97,12 @@ class TestOperatorChecker(CheckerTestCase):
         with self.assertNoMessages():
             self.checker.visit_assign(assign_node)
 
+
+class TestCheckMixedDependencyDirections(CheckerTestCase):
+    """Tests for the Operator checker."""
+
+    CHECKER_CLASS = pylint_airflow.checkers.operator.OperatorChecker
+
     @pytest.mark.parametrize(
         "dependencies,expect_msg",
         [
