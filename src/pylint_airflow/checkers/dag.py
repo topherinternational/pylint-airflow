@@ -50,10 +50,12 @@ def value_from_name_node(name_node: astroid.Name) -> Optional[str]:
         return None
 
     # If astroid can't infer the name node value, we will have to walk the tree of assignments
-    return get_dag_id_from_tree_walk(name_node)
+    return get_name_node_value_from_assignments(name_node)
 
 
-def get_dag_id_from_tree_walk(node: astroid.NodeNG) -> Optional[str]:
+def get_name_node_value_from_assignments(node: astroid.Name) -> Optional[str]:
+    """If a given Name node's value can't be inferred, we find out where the given name node was
+    assigned, and try to infer _that_ value. This function can/will get called recursively."""
     assign_frame_and_nodes = node.lookup(node.name)
     for assign_name_node in assign_frame_and_nodes[1]:
         if isinstance(assign_name_node, astroid.AssignName):
@@ -62,10 +64,11 @@ def get_dag_id_from_tree_walk(node: astroid.NodeNG) -> Optional[str]:
                 assign_value = assign_node.value
                 if isinstance(assign_value, astroid.JoinedStr):
                     return value_from_joined_str_node(assign_value)
-                # if isinstance(assign_value, astroid.Name):
-                #     return value_from_name_node(assign_value)
+                if isinstance(assign_value, astroid.Name):
+                    return value_from_name_node(assign_value)
 
-        print(assign_name_node)
+        # If we drop out of any of if blocks, we give up
+        return None
 
 
 def value_from_joined_str_node(joined_str_node: astroid.JoinedStr) -> Optional[str]:
@@ -127,7 +130,7 @@ def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
         dag_id = dag_id_from_argument_value(call_node.args[0])
         return DagCallNode(dag_id, call_node) if dag_id else None
 
-    # if we found neither a keyword arg or a positional arg
+    # If we found neither a keyword arg or a positional arg
     return None
 
 
