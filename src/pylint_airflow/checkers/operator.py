@@ -1,4 +1,5 @@
 """Checks on Airflow operators."""
+from typing import Set
 
 import astroid
 from pylint import checkers
@@ -46,15 +47,15 @@ OPERATOR_CHECKER_MSGS = {
 }
 
 
-def collect_binops(working_node: astroid.BinOp):
+def collect_operators_from_binops(working_node: astroid.BinOp) -> Set[str]:
     """
     Function for collecting binary operations (>> and/or <<); called with recursion.
     """
     binops_found = set()
     if isinstance(working_node.left, astroid.BinOp):
-        binops_found.update(collect_binops(working_node.left))
+        binops_found.update(collect_operators_from_binops(working_node.left))
     if isinstance(working_node.right, astroid.BinOp):
-        binops_found.update(collect_binops(working_node.right))
+        binops_found.update(collect_operators_from_binops(working_node.right))
     if working_node.op in (">>", "<<"):
         binops_found.add(working_node.op)
 
@@ -115,8 +116,8 @@ class OperatorChecker(checkers.BaseChecker):
 
         self.check_mixed_dependency_directions(node)
 
-    def check_mixed_dependency_directions(self, node: astroid.BinOp):
+    def check_mixed_dependency_directions(self, node: astroid.BinOp) -> None:
         """Check for mixed dependency directions (a BinOp chain contains both >> and <<)."""
-        binops = collect_binops(node)
-        if ">>" in binops and "<<" in binops:
+        collected_operators = collect_operators_from_binops(node)
+        if ">>" in collected_operators and "<<" in collected_operators:
             self.add_message("mixed-dependency-directions", node=node)

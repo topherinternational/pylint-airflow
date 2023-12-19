@@ -138,7 +138,7 @@ class TestCheckMixedDependencyDirections(CheckerTestCase):
             with self.assertAddsMessages(
                 MessageTest(msg_id=message, node=binop_node), ignore_position=True
             ):
-                self.checker.visit_binop(binop_node)
+                self.checker.check_mixed_dependency_directions(binop_node)
         else:
             with self.assertNoMessages():
-                self.checker.visit_binop(binop_node)
+                self.checker.check_mixed_dependency_directions(binop_node)
