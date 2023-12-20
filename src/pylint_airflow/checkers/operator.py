@@ -116,7 +116,10 @@ def get_task_parameters_from_assign(node: astroid.Assign) -> TaskParameters:
 
     assign_target = node.targets[0]
     if not isinstance(assign_target, astroid.AssignName):
-        raise ValueError(f"Target of Assign node {node} is not a Name; task cannot be linted.")
+        raise ValueError(
+            f"Target of Assign node {node} is not an AssignName ({assign_target});"
+            f" task cannot be linted."
+        )
 
     var_name = assign_target.name
     task_id = None
