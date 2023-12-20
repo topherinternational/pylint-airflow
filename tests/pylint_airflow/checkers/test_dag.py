@@ -1,5 +1,5 @@
 # pylint: disable=missing-function-docstring
-"""Tests for the DAG checker."""
+"""Tests for the DAG checker and its helper functions."""
 from collections import defaultdict
 from typing import Dict, List
 

@@ -1,4 +1,13 @@
-"""Checks on Airflow operators."""
+"""Checks on Airflow operators.
+
+This module contains the OperatorChecker class and a collection of functions.
+
+OperatorChecker contains only:
+- Methods interfacing with the pylint checker API (i.e. `visit_<nodetype>()` methods)
+- Methods that add pylint messages for rules violations (`check_<message>()`)
+
+The module-level functions perform any work that isn't a pylint checker method or adding a message.
+"""
 import logging
 from dataclasses import dataclass
 from typing import Set, Optional
@@ -166,6 +175,12 @@ class OperatorChecker(checkers.BaseChecker):
                 self.check_operator_varname_versus_task_id(node, task_parameters)
                 self.check_callable_name_versus_task_id(node, task_parameters)
 
+    @utils.only_required_for_messages("mixed-dependency-directions")
+    def visit_binop(self, node):
+        """Check for mixed dependency directions."""
+
+        self.check_mixed_dependency_directions(node)
+
     def check_operator_varname_versus_task_id(
         self, node: astroid.Assign, task_parameters: TaskParameters
     ) -> None:
@@ -185,12 +200,6 @@ class OperatorChecker(checkers.BaseChecker):
         python_callable_name = task_parameters.python_callable_name
         if python_callable_name and task_id and f"_{task_id}" != python_callable_name:
             self.add_message("match-callable-taskid", node=node)
-
-    @utils.only_required_for_messages("mixed-dependency-directions")
-    def visit_binop(self, node):
-        """Check for mixed dependency directions."""
-
-        self.check_mixed_dependency_directions(node)
 
     def check_mixed_dependency_directions(self, node: astroid.BinOp) -> None:
         """Check for mixed dependency directions (a BinOp chain contains both >> and <<)."""

@@ -1,4 +1,13 @@
-"""Checks on Airflow DAGs."""
+"""Checks on Airflow DAGs/module-wide rules.
+
+This module contains the DagChecker class and a collection of functions.
+
+DagChecker contains only:
+- Methods interfacing with the pylint checker API (i.e. `visit_<nodetype>()` methods)
+- Methods that add pylint messages for rules violations (`check_<message>()`)
+
+The module-level functions perform any work that isn't a pylint checker method or adding a message.
+"""
 from collections import defaultdict, OrderedDict
 from dataclasses import dataclass
 from typing import Dict, List, Optional
