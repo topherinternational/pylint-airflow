@@ -1,4 +1,5 @@
 """Checks on Airflow operators."""
+import logging
 from dataclasses import dataclass
 from typing import Set, Optional
 
@@ -8,6 +9,8 @@ from pylint.checkers import utils
 from pylint.checkers.utils import safe_infer
 
 from pylint_airflow.__pkginfo__ import BASE_ID
+
+logging.basicConfig(level=logging.WARNING)
 
 OPERATOR_CHECKER_MSGS = {
     f"C{BASE_ID}00": (
@@ -111,18 +114,22 @@ def get_task_parameters_from_assign(node: astroid.Assign) -> TaskParameters:
     Operator construction (a task). callable_name and task_id can be None (showing an
     underspecified task whose linting should be skipped)."""
 
-    var_name = node.targets[0].name
+    assign_target = node.targets[0]
+    if not isinstance(assign_target, astroid.AssignName):
+        raise ValueError(f"Target of Assign node {node} is not a Name; task cannot be linted.")
 
+    var_name = assign_target.name
     task_id = None
     python_callable_name = None
 
-    for keyword in node.value.keywords:
-        if keyword.arg == "task_id" and isinstance(keyword.value, astroid.Const):
-            # TODO support other values than constants
-            task_id = keyword.value.value
-            continue
-        if keyword.arg == "python_callable":
-            python_callable_name = keyword.value.name
+    if isinstance(node.value, astroid.Call):  # we know this, but a check gives us type inference
+        for keyword in node.value.keywords:
+            if keyword.arg == "task_id" and isinstance(keyword.value, astroid.Const):
+                # TODO support other values than constants
+                task_id = keyword.value.value
+                continue
+            if keyword.arg == "python_callable" and isinstance(keyword.value, astroid.Name):
+                python_callable_name = keyword.value.name
 
     return TaskParameters(var_name, task_id, python_callable_name)
 
@@ -148,9 +155,13 @@ class OperatorChecker(checkers.BaseChecker):
         """
 
         if is_assign_call_subtype_of_base_operator(node):
-            task_parameters = get_task_parameters_from_assign(node)
-            self.check_operator_varname_versus_task_id(node, task_parameters)
-            self.check_callable_name_versus_task_id(node, task_parameters)
+            try:
+                task_parameters = get_task_parameters_from_assign(node)
+            except ValueError as ve:
+                logging.warning("Task assignment expression could not be analyzed\n%s", ve)
+            else:
+                self.check_operator_varname_versus_task_id(node, task_parameters)
+                self.check_callable_name_versus_task_id(node, task_parameters)
 
     def check_operator_varname_versus_task_id(
         self, node: astroid.Assign, task_parameters: TaskParameters
