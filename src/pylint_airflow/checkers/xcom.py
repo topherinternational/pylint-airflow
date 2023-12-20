@@ -1,4 +1,5 @@
 """Checks on Airflow XComs."""
+from typing import Set, Dict, Tuple
 
 import astroid
 from pylint import checkers
@@ -79,11 +80,16 @@ class XComChecker(checkers.BaseChecker):
                                 if keyword.arg == "task_ids":
                                     xcoms_pulled_taskids.add(keyword.value.value)
 
+        self.check_unused_xcoms(xcoms_pushed, xcoms_pulled_taskids)
+
+        # pylint: enable=too-many-locals,too-many-branches,too-many-nested-blocks
+
+    def check_unused_xcoms(
+        self, xcoms_pushed: Dict[str, Tuple[astroid.Call, str]], xcoms_pulled_taskids: Set[str]
+    ):
         remainder = xcoms_pushed.keys() - xcoms_pulled_taskids
         if remainder:
             # There's a remainder in xcoms_pushed_taskids which should've been xcom_pulled.
             for remainder_task_id in remainder:
                 python_callable, callable_func_name = xcoms_pushed[remainder_task_id]
                 self.add_message("unused-xcom", node=python_callable, args=callable_func_name)
-
-        # pylint: enable=too-many-locals,too-many-branches,too-many-nested-blocks

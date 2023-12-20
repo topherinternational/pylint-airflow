@@ -55,3 +55,13 @@ class TestXComChecker(CheckerTestCase):
             ignore_position=True,
         ):
             self.checker.visit_module(ast)
+
+
+class TestCheckUnusedXComs(CheckerTestCase):
+    """Tests for the XCom checker."""
+
+    CHECKER_CLASS = pylint_airflow.checkers.xcom.XComChecker
+
+    def test_empty_inputs_should_not_message(self):
+        with self.assertNoMessages():
+            self.checker.check_unused_xcoms({}, set())
