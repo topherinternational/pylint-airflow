@@ -48,6 +48,7 @@ DAG_CHECKER_MSGS = {
         "match-dagid-filename",
         "For consistency match the DAG filename with the dag_id.",
     ),
+    # TODO: add check to force kwargs for DAG definitions
 }
 
 
@@ -83,7 +84,7 @@ def value_from_const_node(const_node: astroid.Const) -> Optional[str]:
 def value_from_name_node(name_node: astroid.Name) -> Optional[str]:
     """Returns a DagCallNode instance with dag_id extracted from the name_node argument,
     or None if the node value can't be extracted."""
-    name_val = safe_infer(name_node)  # TODO: follow name chains
+    name_val = safe_infer(name_node)
     if name_val:
         if isinstance(name_val, astroid.Const):
             return value_from_const_node(name_val)
@@ -191,7 +192,6 @@ class DagChecker(checkers.BaseChecker):
     @utils.only_required_for_messages("duplicate-dag-name", "match-dagid-filename")
     def visit_module(self, node: astroid.Module):
         """We must peruse an entire module to detect inter-DAG issues."""
-        # TODO: add check to force kwargs for DAG definitions
         dagids_to_nodes: Dict[str, List[astroid.Call]] = defaultdict(list)
 
         self.collect_dags_in_assignments(node, dagids_to_nodes)
