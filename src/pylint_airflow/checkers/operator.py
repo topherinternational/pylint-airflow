@@ -1,5 +1,6 @@
 """Checks on Airflow operators."""
-from typing import Set, Tuple
+from dataclasses import dataclass
+from typing import Set, Optional
 
 import astroid
 from pylint import checkers
@@ -44,7 +45,25 @@ OPERATOR_CHECKER_MSGS = {
         "TODO To avoid unpacking kwargs from the Airflow task context in a function, you "
         "can set the needed variables as arguments in the function.",
     ),
+    # TODO: add check to force kwargs for task definitions
+    # TODO: modify check to allow task_id matching python_callable name (without underscore)
 }
+
+
+@dataclass
+class TaskParameters:
+    """
+    Data class to hold parameters extracted from an assignment involving the instantiation of
+    an Operator/task.
+
+    var_name is always present
+    task_id might be missing if a constructor call is malformed (tasks have to have IDs)
+    python_callable_name will only be present for a PythonOperator
+    """
+
+    var_name: str
+    task_id: Optional[str] = None
+    python_callable_name: Optional[str] = None
 
 
 def collect_operators_from_binops(working_node: astroid.BinOp) -> Set[str]:
@@ -87,10 +106,11 @@ def is_assign_call_subtype_of_base_operator(node: astroid.Assign) -> bool:
     )
 
 
-def get_task_parameters_from_assign(node: astroid.Assign) -> Tuple:
+def get_task_parameters_from_assign(node: astroid.Assign) -> TaskParameters:
     """Extracts the callable name, task_id and var_name from an assignment whose right side is an
     Operator construction (a task). callable_name and task_id can be None (showing an
     underspecified task whose linting should be skipped)."""
+
     var_name = node.targets[0].name
 
     task_id = None
@@ -104,7 +124,7 @@ def get_task_parameters_from_assign(node: astroid.Assign) -> Tuple:
         if keyword.arg == "python_callable":
             python_callable_name = keyword.value.name
 
-    return python_callable_name, task_id, var_name
+    return TaskParameters(var_name, task_id, python_callable_name)
 
 
 class OperatorChecker(checkers.BaseChecker):
@@ -126,26 +146,29 @@ class OperatorChecker(checkers.BaseChecker):
         def invalidname(): print("dosomething")
         mytask = PythonOperator(task_id="mytask", python_callable=invalidname)
         """
-        # TODO: add check to force kwargs for task definitions
 
         if is_assign_call_subtype_of_base_operator(node):
-            python_callable_name, task_id, var_name = get_task_parameters_from_assign(node)
-            self.check_operator_varname_versus_task_id(node, var_name, task_id)
-            self.check_callable_name_versus_task_id(node, python_callable_name, task_id)
+            task_parameters = get_task_parameters_from_assign(node)
+            self.check_operator_varname_versus_task_id(node, task_parameters)
+            self.check_callable_name_versus_task_id(node, task_parameters)
 
     def check_operator_varname_versus_task_id(
-        self, node: astroid.Assign, var_name: str, task_id: str
+        self, node: astroid.Assign, task_parameters: TaskParameters
     ) -> None:
         """Adds a message if the assigned variable name and the task ID do not match.
         A message is not added if either string argument is empty ("") or None."""
+        var_name = task_parameters.var_name
+        task_id = task_parameters.task_id
         if var_name and task_id and var_name != task_id:
             self.add_message("different-operator-varname-taskid", node=node)
 
     def check_callable_name_versus_task_id(
-        self, node: astroid.Assign, python_callable_name: str, task_id: str
-    ):
+        self, node: astroid.Assign, task_parameters: TaskParameters
+    ) -> None:
         """Adds a message if the callable name and the task ID prefixed with an underscore
         do not match. A message is not added if either string argument is empty ("") or None."""
+        task_id = task_parameters.task_id
+        python_callable_name = task_parameters.python_callable_name
         if python_callable_name and task_id and f"_{task_id}" != python_callable_name:
             self.add_message("match-callable-taskid", node=node)
 

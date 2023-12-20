@@ -5,6 +5,7 @@ import pytest
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
+from pylint_airflow.checkers.operator import TaskParameters
 
 
 class TestOperatorChecker(CheckerTestCase):
@@ -113,7 +114,7 @@ class TestCheckOperatorVarnameVersusTaskId(CheckerTestCase):
             ignore_position=True,
         ):
             self.checker.check_operator_varname_versus_task_id(
-                test_node, test_var_name, test_task_id
+                test_node, TaskParameters(test_var_name, test_task_id)
             )
 
     def test_varname_matches_task_id_should_not_message(self):
@@ -121,7 +122,9 @@ class TestCheckOperatorVarnameVersusTaskId(CheckerTestCase):
         test_name = "my_task"
 
         with self.assertNoMessages():
-            self.checker.check_operator_varname_versus_task_id(test_node, test_name, test_name)
+            self.checker.check_operator_varname_versus_task_id(
+                test_node, TaskParameters(test_name, test_name)
+            )
 
     @pytest.mark.parametrize(
         "test_var_name, test_task_id",
@@ -141,47 +144,47 @@ class TestCheckOperatorVarnameVersusTaskId(CheckerTestCase):
 
         with self.assertNoMessages():
             self.checker.check_operator_varname_versus_task_id(
-                test_node, test_var_name, test_task_id
+                test_node, TaskParameters(test_var_name, test_task_id)
             )
 
 
-class TestCheckCallableNameVersusTaskIt(CheckerTestCase):
+class TestCheckCallableNameVersusTaskId(CheckerTestCase):
     """Tests for the different-operator-varname-taskid function."""
 
     CHECKER_CLASS = pylint_airflow.checkers.operator.OperatorChecker
 
     def test_python_callable_name_does_not_match_underscored_task_id_should_message(self):
         test_node = astroid.extract_node("a = 1")
-        test_python_callable_name = "my_task_function"
         test_task_id = "my_task_id"
+        test_python_callable_name = "my_task_function"
 
         with self.assertAddsMessages(
             MessageTest(msg_id="match-callable-taskid", node=test_node), ignore_position=True
         ):
             self.checker.check_callable_name_versus_task_id(
-                test_node, test_python_callable_name, test_task_id
+                test_node, TaskParameters(test_task_id, test_task_id, test_python_callable_name)
             )
 
     def test_python_callable_name_matches_underscored_task_id_should_not_message(self):
         test_node = astroid.extract_node("a = 1")
-        test_python_callable_name = "_my_task_name"
         test_task_id = "my_task_name"
+        test_python_callable_name = "_my_task_name"
 
         with self.assertNoMessages():
             self.checker.check_callable_name_versus_task_id(
-                test_node, test_python_callable_name, test_task_id
+                test_node, TaskParameters(test_task_id, test_task_id, test_python_callable_name)
             )
 
     @pytest.mark.parametrize(
-        "test_python_callable_name, test_task_id",
+        "test_task_id, test_python_callable_name",
         [
-            ("callable_name", ""),
-            ("callable_name", None),
-            ("", "task_id"),
-            (None, "task_id"),
+            ("task_id", ""),
+            ("task_id", None),
+            ("", "callable_name"),
+            (None, "callable_name"),
             (None, None),
-            ("", None),
             (None, ""),
+            ("", None),
             ("", ""),
         ],
     )
@@ -192,7 +195,7 @@ class TestCheckCallableNameVersusTaskIt(CheckerTestCase):
 
         with self.assertNoMessages():
             self.checker.check_callable_name_versus_task_id(
-                test_node, test_python_callable_name, test_task_id
+                test_node, TaskParameters(test_task_id, test_task_id, test_python_callable_name)
             )
 
 
