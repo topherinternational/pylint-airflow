@@ -1,5 +1,5 @@
 """Checks on Airflow operators."""
-from typing import Set
+from typing import Set, Tuple
 
 import astroid
 from pylint import checkers
@@ -79,6 +79,22 @@ def is_assign_call_subtype_of_base_operator(node: astroid.Assign) -> bool:
     )
 
 
+def get_task_parameters(node: astroid.Assign) -> Tuple:
+    var_name = node.targets[0].name
+
+    task_id = None
+    python_callable_name = None
+
+    for keyword in node.value.keywords:
+        if keyword.arg == "task_id" and isinstance(keyword.value, astroid.Const):
+            # TODO support other values than constants
+            task_id = keyword.value.value
+            continue
+        if keyword.arg == "python_callable":
+            python_callable_name = keyword.value.name
+    return python_callable_name, task_id, var_name
+
+
 class OperatorChecker(checkers.BaseChecker):
     """Checks on Airflow operators."""
 
@@ -101,17 +117,7 @@ class OperatorChecker(checkers.BaseChecker):
         # TODO: add check to force kwargs for task definitions
 
         if is_assign_call_subtype_of_base_operator(node):
-            var_name = node.targets[0].name
-            task_id = None
-            python_callable_name = None
-
-            for keyword in node.value.keywords:
-                if keyword.arg == "task_id" and isinstance(keyword.value, astroid.Const):
-                    # TODO support other values than constants
-                    task_id = keyword.value.value
-                    continue
-                if keyword.arg == "python_callable":
-                    python_callable_name = keyword.value.name
+            python_callable_name, task_id, var_name = get_task_parameters(node)
 
             self.check_operator_varname_versus_task_id(node, var_name, task_id)
 
