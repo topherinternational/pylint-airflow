@@ -1,4 +1,5 @@
-"""Tests for the XCom checker."""
+# pylint: disable=missing-function-docstring
+"""Tests for the XCom checker and its helper functions."""
 
 import astroid
 from pylint.testutils import CheckerTestCase, MessageTest
