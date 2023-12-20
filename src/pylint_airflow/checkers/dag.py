@@ -105,12 +105,12 @@ def get_name_node_value_from_assignments(node: astroid.Name) -> Optional[str]:
                 assign_value = assign_node.value
                 return dag_id_from_argument_value(assign_value)
 
-        # If we drop out of any of 'if' blocks, we give up
+        # If we drop out of any 'if' blocks, we give up
         return None
 
 
 def value_from_joined_str_node(joined_str_node: astroid.JoinedStr) -> Optional[str]:
-    """Returns a DagCallNode instance with dag_id composed from the elements of the
+    """Returns a DagCallNode instance with dag_id composed by joining the elements of the
     joined_str_node argument, or None if the node value can't be extracted."""
     dag_id_elements: List[str] = []
     for js_value in joined_str_node.values:
