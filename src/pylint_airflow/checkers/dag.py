@@ -172,22 +172,20 @@ def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
     return None
 
 
+def dagids_to_deduplicated_nodes(
+    dagids_to_nodes: Dict[str, List[astroid.Call]]
+) -> Dict[str, List[astroid.Call]]:
+    """This utility function transforms the dagids_to_nodes dictionary to make its List
+    values ordered sets - i.e., the list is pruned of duplicate entries while maintaining
+    the original insertion order. This allows the correct duplicate node to be cited by
+    messages that detect duplicate uses of the same dag_id."""
+    return {dag_id: list(OrderedDict.fromkeys(nodes)) for dag_id, nodes in dagids_to_nodes.items()}
+
+
 class DagChecker(checkers.BaseChecker):
     """Checks conditions in the context of (a) complete DAG(s)."""
 
     msgs = DAG_CHECKER_MSGS
-
-    @staticmethod
-    def _dagids_to_deduplicated_nodes(
-        dagids_to_nodes: Dict[str, List[astroid.Call]]
-    ) -> Dict[str, List[astroid.Call]]:
-        """This utility function transforms the dagids_to_nodes dictionary to make its List
-        values ordered sets - i.e., the list is pruned of duplicate entries while maintaining
-        the original insertion order. This allows the correct duplicate node to be cited by
-        messages that detect duplicate uses of the same dag_id."""
-        return {
-            dag_id: list(OrderedDict.fromkeys(nodes)) for dag_id, nodes in dagids_to_nodes.items()
-        }
 
     @utils.only_required_for_messages("duplicate-dag-name", "match-dagid-filename")
     def visit_module(self, node: astroid.Module):
@@ -240,7 +238,7 @@ class DagChecker(checkers.BaseChecker):
         # Check if single DAG and if equals filename
         # Unit test nodes have file "<?>"
         if len(dagids_to_nodes) == 1 and node.file != "<?>":
-            dagid = list(self._dagids_to_deduplicated_nodes(dagids_to_nodes).items())[0][0]
+            dagid = list(dagids_to_deduplicated_nodes(dagids_to_nodes).items())[0][0]
             expected_filename = f"{dagid}.py"
             current_filename = node.file.split("/")[-1]
             if expected_filename != current_filename:
@@ -250,7 +248,7 @@ class DagChecker(checkers.BaseChecker):
         """Adds a message if the module declares two or more DAGs with the same dag_id."""
         duplicate_dags = [
             (dagid, dag_nodes)
-            for dagid, dag_nodes in self._dagids_to_deduplicated_nodes(dagids_to_nodes).items()
+            for dagid, dag_nodes in dagids_to_deduplicated_nodes(dagids_to_nodes).items()
             if len(dag_nodes) > 1 and dagid is not None
         ]
         for (dagid, dag_nodes) in duplicate_dags:

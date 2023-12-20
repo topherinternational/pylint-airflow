@@ -8,7 +8,11 @@ import pytest
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
-from pylint_airflow.checkers.dag import DagCallNode, DagChecker, find_dag_in_call_node
+from pylint_airflow.checkers.dag import (
+    DagCallNode,
+    find_dag_in_call_node,
+    dagids_to_deduplicated_nodes,
+)
 
 
 @pytest.fixture(name="test_dagids_to_nodes")
@@ -363,11 +367,11 @@ class TestFindDagInCallNodeHelper:  # pylint: disable=protected-access,missing-f
         assert result is None
 
 
-class TestDagIdsToDeduplicatedNodesHelper:  # pylint: disable=protected-access,missing-function-docstring
-    """Test the _dagids_to_deduplicated_nodes static helper function."""
+class TestDagIdsToDeduplicatedNodesHelper:
+    """Test the dagids_to_deduplicated_nodes static helper function."""
 
     def test_empty_input_returns_empty_output(self):
-        result = DagChecker._dagids_to_deduplicated_nodes({})
+        result = dagids_to_deduplicated_nodes({})
 
         assert result == {}
 
@@ -378,7 +382,7 @@ class TestDagIdsToDeduplicatedNodesHelper:  # pylint: disable=protected-access,m
         call_4 = astroid.Call(lineno=3, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
         test_dict = {"dag_1": [call_1, call_2], "dag_2": [call_3, call_4]}
 
-        result = DagChecker._dagids_to_deduplicated_nodes(test_dict)
+        result = dagids_to_deduplicated_nodes(test_dict)
 
         assert result == test_dict
 
@@ -390,7 +394,7 @@ class TestDagIdsToDeduplicatedNodesHelper:  # pylint: disable=protected-access,m
         call_4 = astroid.Call(lineno=3, col_offset=0, parent=None, end_lineno=0, end_col_offset=1)
         test_dict = {"dag_1": [call_1, call_2, call_1], "dag_2": [call_3, call_4, call_4]}
 
-        result = DagChecker._dagids_to_deduplicated_nodes(test_dict)
+        result = dagids_to_deduplicated_nodes(test_dict)
 
         expected_result = {"dag_1": [call_1, call_2], "dag_2": [call_3, call_4]}
         assert result == expected_result
@@ -512,10 +516,7 @@ class TestFindDagsInCalls(CheckerTestCase):
 
         self.checker.collect_dags_in_calls(test_module, test_dagids_to_nodes)
 
-        assert (
-            DagChecker._dagids_to_deduplicated_nodes(test_dagids_to_nodes)
-            == expected_dagids_to_nodes
-        )
+        assert dagids_to_deduplicated_nodes(test_dagids_to_nodes) == expected_dagids_to_nodes
 
 
 class TestFindDagsInContextManagers(CheckerTestCase):
