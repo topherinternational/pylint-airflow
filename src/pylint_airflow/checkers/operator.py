@@ -63,6 +63,14 @@ def collect_operators_from_binops(working_node: astroid.BinOp) -> Set[str]:
 
 
 def is_assign_call_subtype_of_base_operator(node: astroid.Assign) -> bool:
+    """Tests an Assign node and returns True if all of the following are true:
+    * The Assign value is a Call object
+    * The Call's func member can be inferred to a node
+    * The inferred value is not a BoundMethod (a method on a class instance)
+    * The inferred value is a ClassDef object (has "is_subtype_of" attribute)
+    * The inferred value is a subtype of "airflow.models.BaseOperator" or
+        "airflow.models.baseoperator.BaseOperator"
+    """
     if not isinstance(node.value, astroid.Call):
         return False
 
@@ -79,7 +87,10 @@ def is_assign_call_subtype_of_base_operator(node: astroid.Assign) -> bool:
     )
 
 
-def get_task_parameters(node: astroid.Assign) -> Tuple:
+def get_task_parameters_from_assign(node: astroid.Assign) -> Tuple:
+    """Extracts the callable name, task_id and var_name from an assignment whose right side is an
+    Operator construction (a task). callable_name and task_id can be None (showing an
+    underspecified task whose linting should be skipped)."""
     var_name = node.targets[0].name
 
     task_id = None
@@ -92,6 +103,7 @@ def get_task_parameters(node: astroid.Assign) -> Tuple:
             continue
         if keyword.arg == "python_callable":
             python_callable_name = keyword.value.name
+
     return python_callable_name, task_id, var_name
 
 
@@ -117,10 +129,8 @@ class OperatorChecker(checkers.BaseChecker):
         # TODO: add check to force kwargs for task definitions
 
         if is_assign_call_subtype_of_base_operator(node):
-            python_callable_name, task_id, var_name = get_task_parameters(node)
-
+            python_callable_name, task_id, var_name = get_task_parameters_from_assign(node)
             self.check_operator_varname_versus_task_id(node, var_name, task_id)
-
             self.check_callable_name_versus_task_id(node, python_callable_name, task_id)
 
     def check_operator_varname_versus_task_id(
