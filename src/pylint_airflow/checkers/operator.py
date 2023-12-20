@@ -161,7 +161,7 @@ class OperatorChecker(checkers.BaseChecker):
             try:
                 task_parameters = get_task_parameters_from_assign(node)
             except ValueError as val_err:
-                logging.warning("Task assignment expression could not be analyzed\n%s", ve)
+                logging.warning("Task assignment expression could not be analyzed\n%s", val_err)
             else:
                 self.check_operator_varname_versus_task_id(node, task_parameters)
                 self.check_callable_name_versus_task_id(node, task_parameters)
