@@ -160,7 +160,7 @@ class OperatorChecker(checkers.BaseChecker):
         if is_assign_call_subtype_of_base_operator(node):
             try:
                 task_parameters = get_task_parameters_from_assign(node)
-            except ValueError as ve:
+            except ValueError as val_err:
                 logging.warning("Task assignment expression could not be analyzed\n%s", ve)
             else:
                 self.check_operator_varname_versus_task_id(node, task_parameters)
