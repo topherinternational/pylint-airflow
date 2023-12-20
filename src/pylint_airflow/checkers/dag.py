@@ -182,6 +182,40 @@ def dagids_to_deduplicated_nodes(
     return {dag_id: list(OrderedDict.fromkeys(nodes)) for dag_id, nodes in dagids_to_nodes.items()}
 
 
+def collect_dags_in_assignments(module_node: astroid.Module, dagids_nodes) -> None:
+    """Finds calls to DAG constructors in Assign nodes and puts them in the
+    dagids_nodes dict."""
+    assign_nodes = module_node.nodes_of_class(astroid.Assign)
+    for assign_node in assign_nodes:
+        if isinstance(assign_node.value, astroid.Call):
+            dag_call_node = find_dag_in_call_node(assign_node.value)
+            if dag_call_node:
+                dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
+
+
+def collect_dags_in_calls(module_node: astroid.Module, dagids_nodes) -> None:
+    """Finds calls to DAG constructors in Call nodes and puts them in the
+    dagids_nodes dict."""
+    call_nodes = module_node.nodes_of_class(astroid.Call)
+    for call_node in call_nodes:
+        dag_call_node = find_dag_in_call_node(call_node)
+        if dag_call_node:
+            dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
+
+
+def collect_dags_in_context_managers(module_node: astroid.Module, dagids_nodes) -> None:
+    """Finds calls to DAG constructors in With nodes (context managers) and puts them in the
+    dagids_nodes dict."""
+    with_nodes = module_node.nodes_of_class(astroid.With)
+    for with_node in with_nodes:
+        for with_item in with_node.items:
+            call_node = with_item[0]
+            if isinstance(call_node, astroid.Call):  # TODO: support non-call args (like vars)
+                dag_call_node = find_dag_in_call_node(call_node)
+                if dag_call_node:
+                    dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
+
+
 class DagChecker(checkers.BaseChecker):
     """Checks conditions in the context of (a) complete DAG(s)."""
 
@@ -192,43 +226,12 @@ class DagChecker(checkers.BaseChecker):
         """We must peruse an entire module to detect inter-DAG issues."""
         dagids_to_nodes: Dict[str, List[astroid.Call]] = defaultdict(list)
 
-        self.collect_dags_in_assignments(node, dagids_to_nodes)
-        self.collect_dags_in_calls(node, dagids_to_nodes)
-        self.collect_dags_in_context_managers(node, dagids_to_nodes)
+        collect_dags_in_assignments(node, dagids_to_nodes)
+        collect_dags_in_calls(node, dagids_to_nodes)
+        collect_dags_in_context_managers(node, dagids_to_nodes)
 
         self.check_single_dag_equals_filename(node, dagids_to_nodes)
         self.check_duplicate_dag_names(dagids_to_nodes)
-
-    def collect_dags_in_assignments(self, module_node: astroid.Module, dagids_nodes) -> None:
-        """Finds calls to DAG constructors in Assign nodes and puts them in the
-        dagids_nodes dict."""
-        assign_nodes = module_node.nodes_of_class(astroid.Assign)
-        for assign_node in assign_nodes:
-            if isinstance(assign_node.value, astroid.Call):
-                dag_call_node = find_dag_in_call_node(assign_node.value)
-                if dag_call_node:
-                    dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
-
-    def collect_dags_in_calls(self, module_node: astroid.Module, dagids_nodes) -> None:
-        """Finds calls to DAG constructors in Call nodes and puts them in the
-        dagids_nodes dict."""
-        call_nodes = module_node.nodes_of_class(astroid.Call)
-        for call_node in call_nodes:
-            dag_call_node = find_dag_in_call_node(call_node)
-            if dag_call_node:
-                dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
-
-    def collect_dags_in_context_managers(self, module_node: astroid.Module, dagids_nodes) -> None:
-        """Finds calls to DAG constructors in With nodes (context managers) and puts them in the
-        dagids_nodes dict."""
-        with_nodes = module_node.nodes_of_class(astroid.With)
-        for with_node in with_nodes:
-            for with_item in with_node.items:
-                call_node = with_item[0]
-                if isinstance(call_node, astroid.Call):  # TODO: support non-call args (like vars)
-                    dag_call_node = find_dag_in_call_node(call_node)
-                    if dag_call_node:
-                        dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
     def check_single_dag_equals_filename(
         self, node: astroid.Module, dagids_to_nodes: Dict[str, List[astroid.Call]]

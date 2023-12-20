@@ -12,6 +12,9 @@ from pylint_airflow.checkers.dag import (
     DagCallNode,
     find_dag_in_call_node,
     dagids_to_deduplicated_nodes,
+    collect_dags_in_assignments,
+    collect_dags_in_calls,
+    collect_dags_in_context_managers,
 )
 
 
@@ -400,16 +403,14 @@ class TestDagIdsToDeduplicatedNodesHelper:
         assert result == expected_result
 
 
-class TestFindDagsInAssignments(CheckerTestCase):
+class TestFindDagsInAssignments:
     """Tests for the method that collects DAGs from Assign nodes."""
-
-    CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
     def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
         test_code = "list([1, 2, 3])"
         test_module = astroid.parse(test_code)
 
-        self.checker.collect_dags_in_assignments(test_module, test_dagids_to_nodes)
+        collect_dags_in_assignments(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == {}
 
@@ -456,21 +457,19 @@ class TestFindDagsInAssignments(CheckerTestCase):
             "test_dag_5": [test_body[11].value],
         }
 
-        self.checker.collect_dags_in_assignments(test_module, test_dagids_to_nodes)
+        collect_dags_in_assignments(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == expected_dagids_to_nodes
 
 
-class TestFindDagsInCalls(CheckerTestCase):
+class TestFindDagsInCalls:
     """Tests for the method that collects DAGs from Call nodes."""
-
-    CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
     def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
         test_code = "list([1, 2, 3])"
         test_module = astroid.parse(test_code)
 
-        self.checker.collect_dags_in_calls(test_module, test_dagids_to_nodes)
+        collect_dags_in_calls(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == {}
 
@@ -514,21 +513,19 @@ class TestFindDagsInCalls(CheckerTestCase):
             "test_dag_5": [test_body[9].value],
         }
 
-        self.checker.collect_dags_in_calls(test_module, test_dagids_to_nodes)
+        collect_dags_in_calls(test_module, test_dagids_to_nodes)
 
         assert dagids_to_deduplicated_nodes(test_dagids_to_nodes) == expected_dagids_to_nodes
 
 
-class TestFindDagsInContextManagers(CheckerTestCase):
+class TestFindDagsInContextManagers:
     """Tests for the method that collects DAGs from With nodes (context manager blocks)."""
-
-    CHECKER_CLASS = pylint_airflow.checkers.dag.DagChecker
 
     def test_no_nodes_collects_nothing(self, test_dagids_to_nodes):
         test_code = "list([1, 2, 3])"
         test_module = astroid.parse(test_code)
 
-        self.checker.collect_dags_in_context_managers(test_module, test_dagids_to_nodes)
+        collect_dags_in_context_managers(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == {}
 
@@ -593,7 +590,7 @@ class TestFindDagsInContextManagers(CheckerTestCase):
             "test_dag_5": [test_body[12].items[0][0]],
         }
 
-        self.checker.collect_dags_in_context_managers(test_module, test_dagids_to_nodes)
+        collect_dags_in_context_managers(test_module, test_dagids_to_nodes)
 
         assert test_dagids_to_nodes == expected_dagids_to_nodes
 
