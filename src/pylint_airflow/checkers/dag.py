@@ -10,6 +10,47 @@ from pylint.checkers.utils import safe_infer
 
 from pylint_airflow.__pkginfo__ import BASE_ID
 
+DAG_CHECKER_MSGS = {
+    f"W{BASE_ID}00": (
+        "TODO Don't place BaseHook calls at the top level of DAG script",
+        "basehook-top-level",
+        "TODO Airflow executes DAG scripts periodically and anything at the top level "
+        "of a script is executed. Therefore, move BaseHook calls into "
+        "functions/hooks/operators.",
+    ),
+    f"E{BASE_ID}00": (
+        "DAG name %s already used",
+        "duplicate-dag-name",
+        "DAG name should be unique.",
+    ),
+    f"E{BASE_ID}01": (
+        "TODO Task name {} already used",
+        "duplicate-task-name",
+        "TODO Task name within a DAG should be unique.",
+    ),
+    f"E{BASE_ID}02": (
+        "TODO Task dependency {}->{} already set",
+        "duplicate-dependency",
+        "TODO Task dependencies can be defined only once.",
+    ),
+    f"E{BASE_ID}03": (
+        "TODO DAG {} contains cycles",
+        "dag-with-cycles",
+        "TODO A DAG is acyclic and cannot contain cycles.",
+    ),
+    f"E{BASE_ID}04": (
+        "TODO Task {} is not bound to any DAG instance",
+        "task-no-dag",
+        "TODO A task must know a DAG instance to run.",
+    ),
+    f"C{BASE_ID}06": (
+        "For consistency match the DAG filename with the dag_id",
+        "match-dagid-filename",
+        "For consistency match the DAG filename with the dag_id.",
+    ),
+    # TODO: add check to force kwargs for DAG definitions
+}
+
 
 @dataclass
 class DagCallNode:
@@ -43,7 +84,7 @@ def value_from_const_node(const_node: astroid.Const) -> Optional[str]:
 def value_from_name_node(name_node: astroid.Name) -> Optional[str]:
     """Returns a DagCallNode instance with dag_id extracted from the name_node argument,
     or None if the node value can't be extracted."""
-    name_val = safe_infer(name_node)  # TODO: follow name chains
+    name_val = safe_infer(name_node)
     if name_val:
         if isinstance(name_val, astroid.Const):
             return value_from_const_node(name_val)
@@ -64,12 +105,12 @@ def get_name_node_value_from_assignments(node: astroid.Name) -> Optional[str]:
                 assign_value = assign_node.value
                 return dag_id_from_argument_value(assign_value)
 
-        # If we drop out of any of 'if' blocks, we give up
+        # If we drop out of any 'if' blocks, we give up
         return None
 
 
 def value_from_joined_str_node(joined_str_node: astroid.JoinedStr) -> Optional[str]:
-    """Returns a DagCallNode instance with dag_id composed from the elements of the
+    """Returns a DagCallNode instance with dag_id composed by joining the elements of the
     joined_str_node argument, or None if the node value can't be extracted."""
     dag_id_elements: List[str] = []
     for js_value in joined_str_node.values:
@@ -134,45 +175,7 @@ def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
 class DagChecker(checkers.BaseChecker):
     """Checks conditions in the context of (a) complete DAG(s)."""
 
-    msgs = {
-        f"W{BASE_ID}00": (
-            "Don't place BaseHook calls at the top level of DAG script",
-            "basehook-top-level",
-            "Airflow executes DAG scripts periodically and anything at the top level "
-            "of a script is executed. Therefore, move BaseHook calls into "
-            "functions/hooks/operators.",
-        ),
-        f"E{BASE_ID}00": (
-            "DAG name %s already used",
-            "duplicate-dag-name",
-            "DAG name should be unique.",
-        ),
-        f"E{BASE_ID}01": (
-            "Task name {} already used",
-            "duplicate-task-name",
-            "Task name within a DAG should be unique.",
-        ),
-        f"E{BASE_ID}02": (
-            "Task dependency {}->{} already set",
-            "duplicate-dependency",
-            "Task dependencies can be defined only once.",
-        ),
-        f"E{BASE_ID}03": (
-            "DAG {} contains cycles",
-            "dag-with-cycles",
-            "A DAG is acyclic and cannot contain cycles.",
-        ),
-        f"E{BASE_ID}04": (
-            "Task {} is not bound to any DAG instance",
-            "task-no-dag",
-            "A task must know a DAG instance to run.",
-        ),
-        f"C{BASE_ID}06": (
-            "For consistency match the DAG filename with the dag_id",
-            "match-dagid-filename",
-            "For consistency match the DAG filename with the dag_id.",
-        ),
-    }
+    msgs = DAG_CHECKER_MSGS
 
     @staticmethod
     def _dagids_to_deduplicated_nodes(

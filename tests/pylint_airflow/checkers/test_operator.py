@@ -1,10 +1,11 @@
+# pylint: disable=missing-function-docstring
 """Tests for the Operator checker."""
-
 import astroid
 import pytest
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
+from pylint_airflow.checkers.operator import TaskParameters
 
 
 class TestOperatorChecker(CheckerTestCase):
@@ -97,6 +98,112 @@ class TestOperatorChecker(CheckerTestCase):
         with self.assertNoMessages():
             self.checker.visit_assign(assign_node)
 
+
+class TestCheckOperatorVarnameVersusTaskId(CheckerTestCase):
+    """Tests for the match-callable-taskid function."""
+
+    CHECKER_CLASS = pylint_airflow.checkers.operator.OperatorChecker
+
+    def test_varname_does_not_match_task_id_should_message(self):
+        test_node = astroid.extract_node("a = 1")
+        test_var_name = "my_task_name"
+        test_task_id = "my_task_id"
+
+        with self.assertAddsMessages(
+            MessageTest(msg_id="different-operator-varname-taskid", node=test_node),
+            ignore_position=True,
+        ):
+            self.checker.check_operator_varname_versus_task_id(
+                test_node, TaskParameters(test_var_name, test_task_id)
+            )
+
+    def test_varname_matches_task_id_should_not_message(self):
+        test_node = astroid.extract_node("a = 1")
+        test_name = "my_task"
+
+        with self.assertNoMessages():
+            self.checker.check_operator_varname_versus_task_id(
+                test_node, TaskParameters(test_name, test_name)
+            )
+
+    @pytest.mark.parametrize(
+        "test_var_name, test_task_id",
+        [
+            ("var_name", ""),
+            ("var_name", None),
+            ("", "task_id"),
+            (None, "task_id"),
+            (None, None),
+            ("", None),
+            (None, ""),
+            ("", ""),
+        ],
+    )
+    def test_either_argument_is_empty_or_none_should_not_message(self, test_var_name, test_task_id):
+        test_node = astroid.extract_node("a = 1")
+
+        with self.assertNoMessages():
+            self.checker.check_operator_varname_versus_task_id(
+                test_node, TaskParameters(test_var_name, test_task_id)
+            )
+
+
+class TestCheckCallableNameVersusTaskId(CheckerTestCase):
+    """Tests for the different-operator-varname-taskid function."""
+
+    CHECKER_CLASS = pylint_airflow.checkers.operator.OperatorChecker
+
+    def test_python_callable_name_does_not_match_underscored_task_id_should_message(self):
+        test_node = astroid.extract_node("a = 1")
+        test_task_id = "my_task_id"
+        test_python_callable_name = "my_task_function"
+
+        with self.assertAddsMessages(
+            MessageTest(msg_id="match-callable-taskid", node=test_node), ignore_position=True
+        ):
+            self.checker.check_callable_name_versus_task_id(
+                test_node, TaskParameters(test_task_id, test_task_id, test_python_callable_name)
+            )
+
+    def test_python_callable_name_matches_underscored_task_id_should_not_message(self):
+        test_node = astroid.extract_node("a = 1")
+        test_task_id = "my_task_name"
+        test_python_callable_name = "_my_task_name"
+
+        with self.assertNoMessages():
+            self.checker.check_callable_name_versus_task_id(
+                test_node, TaskParameters(test_task_id, test_task_id, test_python_callable_name)
+            )
+
+    @pytest.mark.parametrize(
+        "test_task_id, test_python_callable_name",
+        [
+            ("task_id", ""),
+            ("task_id", None),
+            ("", "callable_name"),
+            (None, "callable_name"),
+            (None, None),
+            (None, ""),
+            ("", None),
+            ("", ""),
+        ],
+    )
+    def test_either_argument_is_empty_or_none_should_not_message(
+        self, test_python_callable_name, test_task_id
+    ):
+        test_node = astroid.extract_node("a = 1")
+
+        with self.assertNoMessages():
+            self.checker.check_callable_name_versus_task_id(
+                test_node, TaskParameters(test_task_id, test_task_id, test_python_callable_name)
+            )
+
+
+class TestCheckMixedDependencyDirections(CheckerTestCase):
+    """Tests for the Operator checker."""
+
+    CHECKER_CLASS = pylint_airflow.checkers.operator.OperatorChecker
+
     @pytest.mark.parametrize(
         "dependencies,expect_msg",
         [
@@ -132,7 +239,7 @@ class TestOperatorChecker(CheckerTestCase):
             with self.assertAddsMessages(
                 MessageTest(msg_id=message, node=binop_node), ignore_position=True
             ):
-                self.checker.visit_binop(binop_node)
+                self.checker.check_mixed_dependency_directions(binop_node)
         else:
             with self.assertNoMessages():
-                self.checker.visit_binop(binop_node)
+                self.checker.check_mixed_dependency_directions(binop_node)
