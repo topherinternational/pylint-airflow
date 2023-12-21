@@ -19,6 +19,32 @@ XCOM_CHECKER_MSGS = {
 }
 
 
+def get_task_ids_to_python_callable_specs(
+    node: astroid.Module,
+) -> Dict[str, Tuple[astroid.Call, str]]:
+    assign_nodes = [n for n in node.body if isinstance(n, astroid.Assign)]
+    call_nodes = [n.value for n in assign_nodes if isinstance(n.value, astroid.Call)]
+
+    # Store nodes containing python_callable arg as:
+    # {task_id: (call node, python_callable func name)}
+    python_callable_nodes = {}
+    for call_node in call_nodes:
+        if call_node.keywords:
+            task_id = ""
+            python_callable = ""
+            for keyword in call_node.keywords:
+                if keyword.arg == "python_callable":
+                    python_callable = keyword.value.name
+                    continue
+                if keyword.arg == "task_id":
+                    task_id = keyword.value.value
+
+            if python_callable:
+                python_callable_nodes[task_id] = (call_node, python_callable)
+
+    return python_callable_nodes
+
+
 class XComChecker(checkers.BaseChecker):
     """Checks on Airflow XComs."""
 
@@ -33,26 +59,7 @@ class XComChecker(checkers.BaseChecker):
 
         Currently this only checks unused XComs from return value of a python_callable.
         """
-        # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
-        assign_nodes = [n for n in node.body if isinstance(n, astroid.Assign)]
-        call_nodes = [n.value for n in assign_nodes if isinstance(n.value, astroid.Call)]
-
-        # Store nodes containing python_callable arg as:
-        # {task_id: (call node, python_callable func name)}
-        python_callable_nodes = {}
-        for call_node in call_nodes:
-            if call_node.keywords:
-                task_id = ""
-                python_callable = ""
-                for keyword in call_node.keywords:
-                    if keyword.arg == "python_callable":
-                        python_callable = keyword.value.name
-                        continue
-                    if keyword.arg == "task_id":
-                        task_id = keyword.value.value
-
-                if python_callable:
-                    python_callable_nodes[task_id] = (call_node, python_callable)
+        python_callable_nodes = get_task_ids_to_python_callable_specs(node)
 
         # Now fetch the functions mentioned by python_callable args
         xcoms_pushed = {}
@@ -83,8 +90,6 @@ class XComChecker(checkers.BaseChecker):
                                     xcoms_pulled_taskids.add(keyword.value.value)
 
         self.check_unused_xcoms(xcoms_pushed, xcoms_pulled_taskids)
-
-        # pylint: enable=too-many-locals,too-many-branches,too-many-nested-blocks
 
     def check_unused_xcoms(
         self, xcoms_pushed: Dict[str, Tuple[astroid.Call, str]], xcoms_pulled_taskids: Set[str]
