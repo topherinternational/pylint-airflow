@@ -1,5 +1,5 @@
 # pylint: disable=missing-function-docstring
-"""Tests for the Operator checker."""
+"""Tests for the Operator checker and its helper functions."""
 import astroid
 import pytest
 from pylint.testutils import CheckerTestCase, MessageTest

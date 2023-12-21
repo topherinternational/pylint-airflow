@@ -1,4 +1,13 @@
-"""Checks on Airflow operators."""
+"""Checks on Airflow operators.
+
+This module contains the OperatorChecker class and a collection of functions.
+
+OperatorChecker contains only:
+- Methods interfacing with the pylint checker API (i.e. `visit_<nodetype>()` methods)
+- Methods that add pylint messages for rules violations (`check_<message>()`)
+
+The module-level functions perform any work that isn't a pylint checker method or adding a message.
+"""
 import logging
 from dataclasses import dataclass
 from typing import Set, Optional
@@ -69,21 +78,6 @@ class TaskParameters:
     python_callable_name: Optional[str] = None
 
 
-def collect_operators_from_binops(working_node: astroid.BinOp) -> Set[str]:
-    """
-    Function for collecting binary operations (>> and/or <<); called with recursion.
-    """
-    binops_found = set()
-    if isinstance(working_node.left, astroid.BinOp):
-        binops_found.update(collect_operators_from_binops(working_node.left))
-    if isinstance(working_node.right, astroid.BinOp):
-        binops_found.update(collect_operators_from_binops(working_node.right))
-    if working_node.op in (">>", "<<"):
-        binops_found.add(working_node.op)
-
-    return binops_found
-
-
 def is_assign_call_subtype_of_base_operator(node: astroid.Assign) -> bool:
     """Tests an Assign node and returns True if all of the following are true:
     * The Assign value is a Call object
@@ -137,13 +131,28 @@ def get_task_parameters_from_assign(node: astroid.Assign) -> TaskParameters:
     return TaskParameters(var_name, task_id, python_callable_name)
 
 
+def collect_operators_from_binops(working_node: astroid.BinOp) -> Set[str]:
+    """
+    Function for collecting binary operations (>> and/or <<); called with recursion.
+    """
+    binops_found = set()
+    if isinstance(working_node.left, astroid.BinOp):
+        binops_found.update(collect_operators_from_binops(working_node.left))
+    if isinstance(working_node.right, astroid.BinOp):
+        binops_found.update(collect_operators_from_binops(working_node.right))
+    if working_node.op in (">>", "<<"):
+        binops_found.add(working_node.op)
+
+    return binops_found
+
+
 class OperatorChecker(checkers.BaseChecker):
     """Checks on Airflow operators."""
 
     msgs = OPERATOR_CHECKER_MSGS
 
     @utils.only_required_for_messages("different-operator-varname-taskid", "match-callable-taskid")
-    def visit_assign(self, node):
+    def visit_assign(self, node: astroid.Assign):
         """
         TODO rewrite this
         Check if operators using python_callable argument call a function with name
@@ -166,6 +175,12 @@ class OperatorChecker(checkers.BaseChecker):
                 self.check_operator_varname_versus_task_id(node, task_parameters)
                 self.check_callable_name_versus_task_id(node, task_parameters)
 
+    @utils.only_required_for_messages("mixed-dependency-directions")
+    def visit_binop(self, node: astroid.BinOp):
+        """Check for mixed dependency directions."""
+
+        self.check_mixed_dependency_directions(node)
+
     def check_operator_varname_versus_task_id(
         self, node: astroid.Assign, task_parameters: TaskParameters
     ) -> None:
@@ -185,12 +200,6 @@ class OperatorChecker(checkers.BaseChecker):
         python_callable_name = task_parameters.python_callable_name
         if python_callable_name and task_id and f"_{task_id}" != python_callable_name:
             self.add_message("match-callable-taskid", node=node)
-
-    @utils.only_required_for_messages("mixed-dependency-directions")
-    def visit_binop(self, node):
-        """Check for mixed dependency directions."""
-
-        self.check_mixed_dependency_directions(node)
 
     def check_mixed_dependency_directions(self, node: astroid.BinOp) -> None:
         """Check for mixed dependency directions (a BinOp chain contains both >> and <<)."""

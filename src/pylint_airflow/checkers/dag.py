@@ -1,4 +1,13 @@
-"""Checks on Airflow DAGs."""
+"""Checks on Airflow DAGs/module-wide rules.
+
+This module contains the DagChecker class and a collection of functions.
+
+DagChecker contains only:
+- Methods interfacing with the pylint checker API (i.e. `visit_<nodetype>()` methods)
+- Methods that add pylint messages for rules violations (`check_<message>()`)
+
+The module-level functions perform any work that isn't a pylint checker method or adding a message.
+"""
 from collections import defaultdict, OrderedDict
 from dataclasses import dataclass
 from typing import Dict, List, Optional
@@ -172,65 +181,66 @@ def find_dag_in_call_node(call_node: astroid.Call) -> Optional[DagCallNode]:
     return None
 
 
+def dagids_to_deduplicated_nodes(
+    dagids_to_nodes: Dict[str, List[astroid.Call]]
+) -> Dict[str, List[astroid.Call]]:
+    """This utility function transforms the dagids_to_nodes dictionary to make its List
+    values ordered sets - i.e., the list is pruned of duplicate entries while maintaining
+    the original insertion order. This allows the correct duplicate node to be cited by
+    messages that detect duplicate uses of the same dag_id."""
+    return {dag_id: list(OrderedDict.fromkeys(nodes)) for dag_id, nodes in dagids_to_nodes.items()}
+
+
+def collect_dags_in_assignments(module_node: astroid.Module, dagids_nodes) -> None:
+    """Finds calls to DAG constructors in Assign nodes and puts them in the
+    dagids_nodes dict."""
+    assign_nodes = module_node.nodes_of_class(astroid.Assign)
+    for assign_node in assign_nodes:
+        if isinstance(assign_node.value, astroid.Call):
+            dag_call_node = find_dag_in_call_node(assign_node.value)
+            if dag_call_node:
+                dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
+
+
+def collect_dags_in_calls(module_node: astroid.Module, dagids_nodes) -> None:
+    """Finds calls to DAG constructors in Call nodes and puts them in the
+    dagids_nodes dict."""
+    call_nodes = module_node.nodes_of_class(astroid.Call)
+    for call_node in call_nodes:
+        dag_call_node = find_dag_in_call_node(call_node)
+        if dag_call_node:
+            dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
+
+
+def collect_dags_in_context_managers(module_node: astroid.Module, dagids_nodes) -> None:
+    """Finds calls to DAG constructors in With nodes (context managers) and puts them in the
+    dagids_nodes dict."""
+    with_nodes = module_node.nodes_of_class(astroid.With)
+    for with_node in with_nodes:
+        for with_item in with_node.items:
+            call_node = with_item[0]
+            if isinstance(call_node, astroid.Call):  # TODO: support non-call args (like vars)
+                dag_call_node = find_dag_in_call_node(call_node)
+                if dag_call_node:
+                    dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
+
+
 class DagChecker(checkers.BaseChecker):
     """Checks conditions in the context of (a) complete DAG(s)."""
 
     msgs = DAG_CHECKER_MSGS
-
-    @staticmethod
-    def _dagids_to_deduplicated_nodes(
-        dagids_to_nodes: Dict[str, List[astroid.Call]]
-    ) -> Dict[str, List[astroid.Call]]:
-        """This utility function transforms the dagids_to_nodes dictionary to make its List
-        values ordered sets - i.e., the list is pruned of duplicate entries while maintaining
-        the original insertion order. This allows the correct duplicate node to be cited by
-        messages that detect duplicate uses of the same dag_id."""
-        return {
-            dag_id: list(OrderedDict.fromkeys(nodes)) for dag_id, nodes in dagids_to_nodes.items()
-        }
 
     @utils.only_required_for_messages("duplicate-dag-name", "match-dagid-filename")
     def visit_module(self, node: astroid.Module):
         """We must peruse an entire module to detect inter-DAG issues."""
         dagids_to_nodes: Dict[str, List[astroid.Call]] = defaultdict(list)
 
-        self.collect_dags_in_assignments(node, dagids_to_nodes)
-        self.collect_dags_in_calls(node, dagids_to_nodes)
-        self.collect_dags_in_context_managers(node, dagids_to_nodes)
+        collect_dags_in_assignments(node, dagids_to_nodes)
+        collect_dags_in_calls(node, dagids_to_nodes)
+        collect_dags_in_context_managers(node, dagids_to_nodes)
 
         self.check_single_dag_equals_filename(node, dagids_to_nodes)
         self.check_duplicate_dag_names(dagids_to_nodes)
-
-    def collect_dags_in_assignments(self, module_node: astroid.Module, dagids_nodes) -> None:
-        """Finds calls to DAG constructors in Assign nodes and puts them in the
-        dagids_nodes dict."""
-        assign_nodes = module_node.nodes_of_class(astroid.Assign)
-        for assign_node in assign_nodes:
-            if isinstance(assign_node.value, astroid.Call):
-                dag_call_node = find_dag_in_call_node(assign_node.value)
-                if dag_call_node:
-                    dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
-
-    def collect_dags_in_calls(self, module_node: astroid.Module, dagids_nodes) -> None:
-        """Finds calls to DAG constructors in Call nodes and puts them in the
-        dagids_nodes dict."""
-        call_nodes = module_node.nodes_of_class(astroid.Call)
-        for call_node in call_nodes:
-            dag_call_node = find_dag_in_call_node(call_node)
-            if dag_call_node:
-                dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
-
-    def collect_dags_in_context_managers(self, module_node: astroid.Module, dagids_nodes) -> None:
-        """Finds calls to DAG constructors in With nodes (context managers) and puts them in the
-        dagids_nodes dict."""
-        with_nodes = module_node.nodes_of_class(astroid.With)
-        for with_node in with_nodes:
-            for with_item in with_node.items:
-                call_node = with_item[0]
-                if isinstance(call_node, astroid.Call):  # TODO: support non-call args (like vars)
-                    dag_call_node = find_dag_in_call_node(call_node)
-                    if dag_call_node:
-                        dagids_nodes[dag_call_node.dag_id].append(dag_call_node.call_node)
 
     def check_single_dag_equals_filename(
         self, node: astroid.Module, dagids_to_nodes: Dict[str, List[astroid.Call]]
@@ -240,7 +250,7 @@ class DagChecker(checkers.BaseChecker):
         # Check if single DAG and if equals filename
         # Unit test nodes have file "<?>"
         if len(dagids_to_nodes) == 1 and node.file != "<?>":
-            dagid = list(self._dagids_to_deduplicated_nodes(dagids_to_nodes).items())[0][0]
+            dagid = list(dagids_to_deduplicated_nodes(dagids_to_nodes).items())[0][0]
             expected_filename = f"{dagid}.py"
             current_filename = node.file.split("/")[-1]
             if expected_filename != current_filename:
@@ -250,7 +260,7 @@ class DagChecker(checkers.BaseChecker):
         """Adds a message if the module declares two or more DAGs with the same dag_id."""
         duplicate_dags = [
             (dagid, dag_nodes)
-            for dagid, dag_nodes in self._dagids_to_deduplicated_nodes(dagids_to_nodes).items()
+            for dagid, dag_nodes in dagids_to_deduplicated_nodes(dagids_to_nodes).items()
             if len(dag_nodes) > 1 and dagid is not None
         ]
         for (dagid, dag_nodes) in duplicate_dags:

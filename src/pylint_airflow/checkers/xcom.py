@@ -6,18 +6,20 @@ from pylint.checkers import utils
 
 from pylint_airflow.__pkginfo__ import BASE_ID
 
+XCOM_CHECKER_MSGS = {
+    f"R{BASE_ID}00": (
+        "Return value from %s is stored as XCom but not used anywhere",
+        "unused-xcom",
+        "Return values from a python_callable function or execute() method are "
+        "automatically pushed as XCom.",
+    )
+}
+
 
 class XComChecker(checkers.BaseChecker):
     """Checks on Airflow XComs."""
 
-    msgs = {
-        f"R{BASE_ID}00": (
-            "Return value from %s is stored as XCom but not used anywhere",
-            "unused-xcom",
-            "Return values from a python_callable function or execute() method are "
-            "automatically pushed as XCom.",
-        )
-    }
+    msgs = XCOM_CHECKER_MSGS
 
     @utils.only_required_for_messages("unused-xcom")
     def visit_module(self, node: astroid.Module):
