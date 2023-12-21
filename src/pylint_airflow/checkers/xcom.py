@@ -31,8 +31,8 @@ class PythonOperatorSpec:
 
 def get_task_ids_to_python_callable_specs(node: astroid.Module) -> Dict[str, PythonOperatorSpec]:
     """Fill this in"""
-    assign_nodes = [n for n in node.body if isinstance(n, astroid.Assign)]
-    call_nodes = [n.value for n in assign_nodes if isinstance(n.value, astroid.Call)]
+    assign_nodes = node.nodes_of_class(astroid.Assign)
+    call_nodes = [assign.value for assign in assign_nodes if isinstance(assign.value, astroid.Call)]
 
     # Store nodes containing python_callable arg as:
     # {task_id: PythonOperatorSpec(call node, python_callable func name)}
@@ -80,12 +80,13 @@ def get_xcoms_from_tasks(
         # Check if the function pulls any XComs
         callable_func_calls = callable_func.nodes_of_class(astroid.Call)
         for callable_func_call in callable_func_calls:
+            callable_func = callable_func_call.func
             if (
-                isinstance(callable_func_call.func, astroid.Attribute)
-                and callable_func_call.func.attrname == "xcom_pull"
+                isinstance(callable_func, astroid.Attribute)
+                and callable_func.attrname == "xcom_pull"
             ):
                 for keyword in callable_func_call.keywords:
-                    if keyword.arg == "task_ids":
+                    if keyword.arg == "task_ids" and isinstance(keyword.value, astroid.Const):
                         xcoms_pulled_taskids.add(keyword.value.value)
 
     return xcoms_pushed, xcoms_pulled_taskids
