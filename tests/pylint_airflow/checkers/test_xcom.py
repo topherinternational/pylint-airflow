@@ -5,6 +5,7 @@ import astroid
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
+from pylint_airflow.checkers.xcom import PythonOperatorSpec
 
 
 class TestXComChecker(CheckerTestCase):
@@ -80,7 +81,7 @@ class TestCheckUnusedXComs(CheckerTestCase):
         ast = astroid.parse(test_code)
         push_call = ast.body[1].value
 
-        test_xcoms_pushed = {"pushtask": (push_call, "_pushtask")}
+        test_xcoms_pushed = {"pushtask": PythonOperatorSpec(push_call, "_pushtask")}
         test_xcoms_pulled_taskids = {"pushtask"}
 
         with self.assertNoMessages():
@@ -99,8 +100,8 @@ class TestCheckUnusedXComs(CheckerTestCase):
         push_call_2 = ast.body[2].value
 
         test_xcoms_pushed = {
-            "pushtask_1": (push_call_1, "_pushtask_1"),
-            "pushtask_2": (push_call_2, "_pushtask_2"),
+            "pushtask_1": PythonOperatorSpec(push_call_1, "_pushtask_1"),
+            "pushtask_2": PythonOperatorSpec(push_call_2, "_pushtask_2"),
         }
         test_xcoms_pulled_taskids = set()
 
