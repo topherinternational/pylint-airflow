@@ -74,22 +74,39 @@ class TestCheckUnusedXComs(CheckerTestCase):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
 
-        def _pushtask():
-            print("do stuff")
-            return "foobar"
-
         pushtask = PythonOperator(task_id="pushtask", python_callable=_pushtask)
-
-        def _pulltask(task_instance, **_):
-            print(task_instance.xcom_pull(task_ids="pushtask"))
-
-        pulltask = PythonOperator(task_id="pulltask", python_callable=_pulltask, provide_context=True)
+        # further code omitted as not necessary for the test
         """
         ast = astroid.parse(test_code)
-        push_call = ast.body[2].value
+        push_call = ast.body[1].value
 
         test_xcoms_pushed = {"pushtask": (push_call, "_pushtask")}
         test_xcoms_pulled_taskids = {"pushtask"}
 
         with self.assertNoMessages():
+            self.checker.check_unused_xcoms(test_xcoms_pushed, test_xcoms_pulled_taskids)
+
+    def test_xcoms_not_used_should_not_message(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+
+        pushtask_1 = PythonOperator(task_id="pushtask_1", python_callable=_pushtask_1)
+        pushtask_2 = PythonOperator(task_id="pushtask_2", python_callable=_pushtask_2)
+        # further code omitted as not necessary for the test
+        """
+        ast = astroid.parse(test_code)
+        push_call_1 = ast.body[1].value
+        push_call_2 = ast.body[2].value
+
+        test_xcoms_pushed = {
+            "pushtask_1": (push_call_1, "_pushtask_1"),
+            "pushtask_2": (push_call_2, "_pushtask_2"),
+        }
+        test_xcoms_pulled_taskids = set()
+
+        with self.assertAddsMessages(
+            MessageTest(msg_id="unused-xcom", node=push_call_1, args="_pushtask_1"),
+            MessageTest(msg_id="unused-xcom", node=push_call_2, args="_pushtask_2"),
+            ignore_position=True,
+        ):
             self.checker.check_unused_xcoms(test_xcoms_pushed, test_xcoms_pulled_taskids)

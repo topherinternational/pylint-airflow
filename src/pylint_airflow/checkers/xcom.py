@@ -15,6 +15,7 @@ XCOM_CHECKER_MSGS = {
         "automatically pushed as XCom.",
     )
     # TODO: add a check for pulling XComs that were never pushed
+    # TODO: make unused-xcom check sensitive to multiple pushes in the same callable
 }
 
 
@@ -88,9 +89,13 @@ class XComChecker(checkers.BaseChecker):
     def check_unused_xcoms(
         self, xcoms_pushed: Dict[str, Tuple[astroid.Call, str]], xcoms_pulled_taskids: Set[str]
     ):
+        """Adds a message for every key in the xcoms_pushed dictionary that is not present in
+        xcoms_pulled_taskids. Note that this check does _not_ flag IDs in xcoms_pulled_taskids
+        that are not present in the xcoms_pushed dictionary."""
         remainder = xcoms_pushed.keys() - xcoms_pulled_taskids
         if remainder:
             # There's a remainder in xcoms_pushed_taskids which should've been xcom_pulled.
-            for remainder_task_id in remainder:
+            sorted_remainder = sorted(list(remainder))  # guarantee repeatable ordering of messages
+            for remainder_task_id in sorted_remainder:
                 python_callable, callable_func_name = xcoms_pushed[remainder_task_id]
                 self.add_message("unused-xcom", node=python_callable, args=callable_func_name)
