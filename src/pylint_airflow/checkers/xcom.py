@@ -14,6 +14,7 @@ XCOM_CHECKER_MSGS = {
         "Return values from a python_callable function or execute() method are "
         "automatically pushed as XCom.",
     )
+    # TODO: add a check for pulling XComs that were never pushed
 }
 
 
