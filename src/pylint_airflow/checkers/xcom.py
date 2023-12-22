@@ -1,4 +1,13 @@
-"""Checks on Airflow XComs."""
+"""Checks on Airflow XComs.
+
+This module contains the XComChecker class and a collection of functions.
+
+XComChecker contains only:
+- Methods interfacing with the pylint checker API (i.e. `visit_<nodetype>()` methods)
+- Methods that add pylint messages for rules violations (`check_<message>()`)
+
+The module-level functions perform any work that isn't a pylint checker method or adding a message.
+"""
 from dataclasses import dataclass
 from typing import Set, Dict, Tuple
 
