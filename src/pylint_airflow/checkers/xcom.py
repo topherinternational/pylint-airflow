@@ -119,7 +119,7 @@ class XComChecker(checkers.BaseChecker):
         that are not present in the xcoms_pushed dictionary."""
         remainder = xcoms_pushed.keys() - xcoms_pulled_taskids
         if remainder:
-            # There's a task_id in xcoms_pushed_taskids which should haveve been xcom_pull'd
+            # There's a task_id in xcoms_pushed_taskids which should have been xcom_pull'd
             sorted_remainder = sorted(list(remainder))  # guarantee repeatable ordering of messages
             for remainder_task_id in sorted_remainder:
                 python_operator_spec = xcoms_pushed[remainder_task_id]
