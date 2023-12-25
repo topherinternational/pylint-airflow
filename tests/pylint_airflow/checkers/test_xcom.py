@@ -1,11 +1,141 @@
 # pylint: disable=missing-function-docstring
 """Tests for the XCom checker and its helper functions."""
+from unittest.mock import Mock
 
 import astroid
+import pytest
 from pylint.testutils import CheckerTestCase, MessageTest
 
 import pylint_airflow
-from pylint_airflow.checkers.xcom import PythonOperatorSpec
+from pylint_airflow.checkers.xcom import (
+    PythonOperatorSpec,
+    get_task_ids_to_python_callable_specs,
+    get_xcoms_from_tasks,
+)
+
+
+class TestGetTaskIdsToPythonCallableSpecs:
+    @pytest.mark.parametrize(
+        "test_code",
+        [
+            """# empty module""",
+            """
+                print("test this")
+                int("5")
+            """,
+            """
+                x = 5
+                y = x + 2
+            """,
+            """
+                x = int(x="-5")  # keyword arg
+                y = abs(x)  # positional arg
+            """,
+        ],
+        ids=[
+            "no code",
+            "no assignments",
+            "no calls",
+            "no operators",
+        ],
+    )
+    def test_should_return_empty_when_no_tasks(self, test_code):
+        ast = astroid.parse(test_code)
+
+        result = get_task_ids_to_python_callable_specs(ast)
+
+        assert result == {}
+
+    def test_should_skip_lambda_callable(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+
+        lambda_task = PythonOperator(task_id="lambda_task", python_callable=lambda x: print(x))
+        """
+        ast = astroid.parse(test_code)
+
+        result = get_task_ids_to_python_callable_specs(ast)
+
+        assert result == {}
+
+    def test_should_detect_builtin_callable(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+
+        builtin_task = PythonOperator(task_id="builtin_task", python_callable=super)
+        """
+        ast = astroid.parse(test_code)
+
+        result = get_task_ids_to_python_callable_specs(ast)
+
+        expected_result = {
+            "builtin_task": PythonOperatorSpec(ast.body[1].value, "super"),
+        }
+
+        assert result == expected_result
+
+    def test_should_detect_local_function_callables(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+
+        def task_func():
+            print("bupkis")
+
+        def aux_func():
+            return 2 + 2
+
+        local_task = PythonOperator(task_id="local_task", python_callable=task_func)
+        another_task = PythonOperator(task_id="another_task", python_callable=aux_func)
+        """
+        ast = astroid.parse(test_code)
+
+        result = get_task_ids_to_python_callable_specs(ast)
+
+        expected_result = {
+            "local_task": PythonOperatorSpec(ast.body[3].value, "task_func"),
+            "another_task": PythonOperatorSpec(ast.body[4].value, "aux_func"),
+        }
+
+        assert result == expected_result
+
+
+class TestGetXComsFromTasks:
+    def test_should_return_empty_on_empty_input(self):
+        result = get_xcoms_from_tasks(Mock(), {})
+        # node argument isn't used when input dict is empty, so we can simply use a Mock object
+
+        assert result == ({}, set())
+
+    def test_should_skip_lambda_callable(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+
+        lambda_task = PythonOperator(task_id="lambda_task", python_callable=lambda x: print(x))
+        """
+        ast = astroid.parse(test_code)
+        test_task_ids_to_python_callable_specs = {
+            "lambda_task": PythonOperatorSpec(ast.body[1].value, "<lambda>")
+        }
+
+        result = get_xcoms_from_tasks(ast, test_task_ids_to_python_callable_specs)
+
+        assert result == ({}, set())
+
+    def test_should_skip_builtin_callable(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+
+        builtin_task = PythonOperator(task_id="builtin_task", python_callable=super)
+        """
+        ast = astroid.parse(test_code)
+
+        test_task_ids_to_python_callable_specs = {
+            "builtin_task": PythonOperatorSpec(ast.body[1].value, "super"),
+        }
+
+        result = get_xcoms_from_tasks(ast, test_task_ids_to_python_callable_specs)
+
+        assert result == ({}, set())
 
 
 class TestXComChecker(CheckerTestCase):
@@ -15,7 +145,7 @@ class TestXComChecker(CheckerTestCase):
 
     def test_used_xcom(self):
         """Test valid case: _pushtask() returns a value and _pulltask pulls and uses it."""
-        testcase = """
+        test_code = """
         from airflow.operators.python_operator import PythonOperator
         
         def _pushtask():
@@ -29,13 +159,13 @@ class TestXComChecker(CheckerTestCase):
             
         pulltask = PythonOperator(task_id="pulltask", python_callable=_pulltask, provide_context=True)
         """
-        ast = astroid.parse(testcase)
+        ast = astroid.parse(test_code)
         with self.assertNoMessages():
             self.checker.visit_module(ast)
 
     def test_unused_xcom(self):
         """Test invalid case: _pushtask() returns a value but it's never used."""
-        testcase = """
+        test_code = """
         from airflow.operators.python_operator import PythonOperator
 
         def _pushtask():
@@ -49,7 +179,7 @@ class TestXComChecker(CheckerTestCase):
 
         pulltask = PythonOperator(task_id="pulltask", python_callable=_pulltask)
         """
-        ast = astroid.parse(testcase)
+        ast = astroid.parse(test_code)
         expected_msg_node = ast.body[2].value
         expected_args = "_pushtask"
         with self.assertAddsMessages(
