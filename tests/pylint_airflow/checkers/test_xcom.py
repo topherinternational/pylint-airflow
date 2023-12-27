@@ -160,7 +160,7 @@ class TestGetXComsFromTasks:
             print
 
         # TODO: detect a naked return statement and don't detect it as an xcom push
-        # TODO: detect function inputs as xcom pulls when appropriat
+        # TODO: detect function inputs as xcom pulls when appropriate
 
         local_task = PythonOperator(task_id="local_task", python_callable=task_func)
         aux_task = PythonOperator(task_id="aux_task", python_callable=aux_func)
