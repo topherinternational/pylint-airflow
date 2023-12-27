@@ -74,6 +74,10 @@ class TestGetTaskIdsToPythonCallableSpecs:
 
         assert result == expected_result
 
+    @pytest.mark.xfail(reason="Test not yet written", raises=AssertionError, strict=True)
+    def test_should_detect_imported_callable(self):
+        assert False  # TODO: write this test
+
     def test_should_detect_local_function_callables(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
@@ -136,6 +140,94 @@ class TestGetXComsFromTasks:
         result = get_xcoms_from_tasks(ast, test_task_ids_to_python_callable_specs)
 
         assert result == ({}, set())
+
+    @pytest.mark.xfail(reason="Test not yet written", raises=AssertionError, strict=True)
+    def test_should_skip_imported_callable(self):
+        assert False  # TODO: write this test
+
+    def test_should_detect_xcom_push_tasks(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+
+        def task_func():
+            print("bupkis")
+            return "done"
+
+        def aux_func():
+            return 2 + 2
+
+        def another_func():
+            print
+
+        # TODO: detect a naked return statement and don't detect it as an xcom push
+        # TODO: detect function inputs as xcom pulls when appropriat
+
+        local_task = PythonOperator(task_id="local_task", python_callable=task_func)
+        aux_task = PythonOperator(task_id="aux_task", python_callable=aux_func)
+        another_task = PythonOperator(task_id="another_task", python_callable=another_func)
+        """
+        ast = astroid.parse(test_code)
+
+        local_task_spec = PythonOperatorSpec(ast.body[4].value, "task_func")
+        aux_task_spec = PythonOperatorSpec(ast.body[5].value, "aux_func")
+        another_task_spec = PythonOperatorSpec(ast.body[6].value, "another_func")
+        test_task_ids_to_python_callable_specs = {
+            "local_task": local_task_spec,
+            "aux_task": aux_task_spec,
+            "another_task": another_task_spec,
+        }
+
+        result = get_xcoms_from_tasks(ast, test_task_ids_to_python_callable_specs)
+
+        expected_result = (
+            {  # xcom pushes
+                "local_task": local_task_spec,
+                "aux_task": aux_task_spec,
+            },
+            set(),  # no xcom_pulls
+        )
+
+        assert result == expected_result
+
+    def test_should_detect_xcom_pull_tasks(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+
+        def push_func(task_instance, **_):
+            print("bupkis")
+            return "done"
+
+        def pull_func():
+            push_val = task_instance.xcom_pull(task_ids="push_task")
+
+        def pull_again_func():
+            print(task_instance.xcom_pull(task_ids="push_task"))
+
+        push_task = PythonOperator(task_id="push_task", python_callable=push_func)
+        pull_task = PythonOperator(task_id="pull_task", python_callable=pull_func, provide_context=True)
+        pull_again_task = PythonOperator(task_id="pull_again_task", python_callable=pull_again_func, provide_context=True)
+        """
+        ast = astroid.parse(test_code)
+
+        local_task_spec = PythonOperatorSpec(ast.body[4].value, "push_func")
+        aux_task_spec = PythonOperatorSpec(ast.body[5].value, "pull_func")
+        another_task_spec = PythonOperatorSpec(ast.body[6].value, "pull_again_func")
+        test_task_ids_to_python_callable_specs = {
+            "push_task": local_task_spec,
+            "pull_task": aux_task_spec,
+            "pull_again_task": another_task_spec,
+        }
+
+        result = get_xcoms_from_tasks(ast, test_task_ids_to_python_callable_specs)
+
+        expected_result = (
+            {
+                "push_task": local_task_spec,
+            },
+            {"push_task"},
+        )
+
+        assert result == expected_result
 
 
 class TestXComChecker(CheckerTestCase):

@@ -98,6 +98,8 @@ def get_xcoms_from_tasks(
                 for keyword in callable_func_call.keywords:
                     if keyword.arg == "task_ids" and isinstance(keyword.value, astroid.Const):
                         xcoms_pulled_taskids.add(keyword.value.value)
+                        # TODO: add support for xcom 'key' argument
+                        # TODO: add support for non-Const argument values
 
     return xcoms_pushed, xcoms_pulled_taskids
 
