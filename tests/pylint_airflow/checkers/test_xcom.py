@@ -15,6 +15,9 @@ from pylint_airflow.checkers.xcom import (
 
 
 class TestGetTaskIdsToPythonCallableSpecs:
+    """Tests the get_task_ids_to_python_callable_specs helper function which detects the
+    python_callable functions passed to PythonOperator constructions."""
+
     @pytest.mark.parametrize(
         "test_code",
         [
@@ -104,6 +107,8 @@ class TestGetTaskIdsToPythonCallableSpecs:
 
 
 class TestGetXComsFromTasks:
+    """Tests the get_xcoms_from_tasks helper function which detects the xcom pushes and pulls."""
+
     def test_should_return_empty_on_empty_input(self):
         result = get_xcoms_from_tasks(Mock(), {})
         # node argument isn't used when input dict is empty, so we can simply use a Mock object
