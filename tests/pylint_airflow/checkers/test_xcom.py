@@ -1,4 +1,4 @@
-# pylint: disable=missing-function-docstring
+# pylint: disable=missing-function-docstring,use-implicit-booleaness-not-comparison
 """Tests for the XCom checker and its helper functions."""
 from unittest.mock import Mock
 
@@ -65,21 +65,53 @@ class TestGetTaskIdsToPythonCallableSpecs:
         test_code = """
         from airflow.operators.python_operator import PythonOperator
 
-        builtin_task = PythonOperator(task_id="builtin_task", python_callable=super)
+        builtin_task = PythonOperator(task_id="builtin_task", python_callable=list)
         """
         ast = astroid.parse(test_code)
 
         result = get_task_ids_to_python_callable_specs(ast)
 
         expected_result = {
-            "builtin_task": PythonOperatorSpec(ast.body[1].value, "super"),
+            "builtin_task": PythonOperatorSpec(ast.body[1].value, "list"),
         }
 
         assert result == expected_result
 
-    @pytest.mark.xfail(reason="Test not yet written", raises=AssertionError, strict=True)
-    def test_should_detect_imported_callable(self):
-        assert False  # TODO: write this test
+    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
+    def test_should_detect_imported_callable_as_attribute(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+        from datetime import date
+
+        builtin_task = PythonOperator(task_id="builtin_task", python_callable=date.today)
+        """
+        ast = astroid.parse(test_code)
+
+        result = get_task_ids_to_python_callable_specs(ast)
+
+        expected_result = {
+            "builtin_task": PythonOperatorSpec(ast.body[2].value, "date.today"),
+        }
+
+        assert result == expected_result
+
+    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
+    def test_should_detect_imported_callable_as_name(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+        from datetime.date import today
+
+        builtin_task = PythonOperator(task_id="builtin_task", python_callable=today)
+        """
+        ast = astroid.parse(test_code)
+
+        result = get_task_ids_to_python_callable_specs(ast)
+
+        expected_result = {
+            "builtin_task": PythonOperatorSpec(ast.body[2].value, "today"),
+        }
+
+        assert result == expected_result
 
     def test_should_detect_local_function_callables(self):
         test_code = """
@@ -134,21 +166,51 @@ class TestGetXComsFromTasks:
         test_code = """
         from airflow.operators.python_operator import PythonOperator
 
-        builtin_task = PythonOperator(task_id="builtin_task", python_callable=super)
+        builtin_task = PythonOperator(task_id="builtin_task", python_callable=list)
         """
         ast = astroid.parse(test_code)
 
         test_task_ids_to_python_callable_specs = {
-            "builtin_task": PythonOperatorSpec(ast.body[1].value, "super"),
+            "builtin_task": PythonOperatorSpec(ast.body[1].value, "list"),
         }
 
         result = get_xcoms_from_tasks(ast, test_task_ids_to_python_callable_specs)
 
         assert result == ({}, set())
 
-    @pytest.mark.xfail(reason="Test not yet written", raises=AssertionError, strict=True)
-    def test_should_skip_imported_callable(self):
-        assert False  # TODO: write this test
+    def test_should_skip_imported_callable_as_attribute(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+        from datetime import date
+
+        builtin_task = PythonOperator(task_id="builtin_task", python_callable=date.today)
+        """
+        ast = astroid.parse(test_code)
+
+        test_task_ids_to_python_callable_specs = {
+            "builtin_task": PythonOperatorSpec(ast.body[2].value, "date.today"),
+        }
+
+        result = get_xcoms_from_tasks(ast, test_task_ids_to_python_callable_specs)
+
+        assert result == ({}, set())
+
+    def test_should_skip_imported_callable_as_name(self):
+        test_code = """
+        from airflow.operators.python_operator import PythonOperator
+        from datetime.date import today
+
+        builtin_task = PythonOperator(task_id="builtin_task", python_callable=today)
+        """
+        ast = astroid.parse(test_code)
+
+        test_task_ids_to_python_callable_specs = {
+            "builtin_task": PythonOperatorSpec(ast.body[2].value, "today"),
+        }
+
+        result = get_xcoms_from_tasks(ast, test_task_ids_to_python_callable_specs)
+
+        assert result == ({}, set())
 
     def test_should_detect_xcom_push_tasks(self):
         test_code = """
