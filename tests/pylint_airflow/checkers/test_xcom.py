@@ -77,7 +77,6 @@ class TestGetTaskIdsToPythonCallableSpecs:
 
         assert result == expected_result
 
-    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
     def test_should_detect_imported_callable_as_attribute(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
