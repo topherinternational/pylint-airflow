@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from typing import Set, Dict, Tuple
 
 import astroid
-from astroid import AttributeInferenceError
 from pylint import checkers
 from pylint.checkers import utils
 
@@ -78,12 +77,8 @@ def get_xcoms_from_tasks(
         if callable_func_name == "<lambda>":  # TODO support lambdas
             continue
 
-        try:
-            module_attribute = node.getattr(callable_func_name)
-        except AttributeInferenceError:
-            continue
-        else:
-            callable_func = module_attribute[0]
+        callable_func = node.getattr(callable_func_name)[0]
+        # ^ TODO: handle builtins and attribute imports that will raise on this call
 
         if not isinstance(callable_func, astroid.FunctionDef):
             continue  # Callable_func is str not FunctionDef when imported

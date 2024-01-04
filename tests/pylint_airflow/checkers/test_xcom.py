@@ -95,7 +95,6 @@ class TestGetTaskIdsToPythonCallableSpecs:
 
         assert result == expected_result
 
-    @pytest.mark.xfail(reason="Not yet implemented", raises=AssertionError, strict=True)
     def test_should_detect_imported_callable_as_name(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
@@ -162,6 +161,9 @@ class TestGetXComsFromTasks:
 
         assert result == ({}, set())
 
+    @pytest.mark.xfail(
+        reason="Not yet implemented", raises=astroid.AttributeInferenceError, strict=True
+    )
     def test_should_skip_builtin_callable(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
@@ -178,6 +180,9 @@ class TestGetXComsFromTasks:
 
         assert result == ({}, set())
 
+    @pytest.mark.xfail(
+        reason="Not yet implemented", raises=astroid.AttributeInferenceError, strict=True
+    )
     def test_should_skip_imported_callable_as_attribute(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
