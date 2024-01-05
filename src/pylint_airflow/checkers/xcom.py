@@ -50,16 +50,21 @@ def get_task_ids_to_python_callable_specs(node: astroid.Module) -> Dict[str, Pyt
     for call_node in call_nodes:
         if call_node.keywords:
             task_id = ""
-            python_callable_function_name = ""
+            python_callable_name = ""
             for keyword in call_node.keywords:
-                if keyword.arg == "python_callable" and isinstance(keyword.value, astroid.Name):
-                    python_callable_function_name = keyword.value.name  # TODO: support lambdas
-                elif keyword.arg == "task_id" and isinstance(keyword.value, astroid.Const):
-                    task_id = keyword.value.value  # TODO: support non-Const args
+                kw_value = keyword.value
+                if keyword.arg == "python_callable":
+                    if isinstance(kw_value, astroid.Name):  # TODO: support lambdas
+                        python_callable_name = kw_value.name
+                    elif isinstance(kw_value, astroid.Attribute):
+                        if isinstance(kw_value.expr, astroid.Name):
+                            python_callable_name = f"{kw_value.expr.name}.{kw_value.attrname}"
+                elif keyword.arg == "task_id" and isinstance(kw_value, astroid.Const):
+                    task_id = kw_value.value  # TODO: support non-Const args
 
-            if python_callable_function_name:
+            if python_callable_name:
                 task_ids_to_python_callable_specs[task_id] = PythonOperatorSpec(
-                    call_node, python_callable_function_name
+                    call_node, python_callable_name
                 )
 
     return task_ids_to_python_callable_specs
