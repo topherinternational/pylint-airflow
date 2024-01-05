@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Set, Dict, Tuple
 
 import astroid
+from astroid import AttributeInferenceError
 from pylint import checkers
 from pylint.checkers import utils
 
@@ -39,6 +40,7 @@ class PythonOperatorSpec:
 
 
 def get_task_ids_to_python_callable_specs(node: astroid.Module) -> Dict[str, PythonOperatorSpec]:
+    # pylint: disable=too-many-nested-blocks
     """Fill this in"""
     assign_nodes = node.nodes_of_class(astroid.Assign)
     call_nodes = [assign.value for assign in assign_nodes if isinstance(assign.value, astroid.Call)]
@@ -50,16 +52,21 @@ def get_task_ids_to_python_callable_specs(node: astroid.Module) -> Dict[str, Pyt
     for call_node in call_nodes:
         if call_node.keywords:
             task_id = ""
-            python_callable_function_name = ""
+            python_callable_name = ""
             for keyword in call_node.keywords:
-                if keyword.arg == "python_callable" and isinstance(keyword.value, astroid.Name):
-                    python_callable_function_name = keyword.value.name  # TODO: support lambdas
-                elif keyword.arg == "task_id" and isinstance(keyword.value, astroid.Const):
-                    task_id = keyword.value.value  # TODO: support non-Const args
+                kw_value = keyword.value
+                if keyword.arg == "python_callable":
+                    if isinstance(kw_value, astroid.Name):  # TODO: support lambdas
+                        python_callable_name = kw_value.name
+                    elif isinstance(kw_value, astroid.Attribute):
+                        if isinstance(kw_value.expr, astroid.Name):
+                            python_callable_name = f"{kw_value.expr.name}.{kw_value.attrname}"
+                elif keyword.arg == "task_id" and isinstance(kw_value, astroid.Const):
+                    task_id = kw_value.value  # TODO: support non-Const args
 
-            if python_callable_function_name:
+            if python_callable_name:
                 task_ids_to_python_callable_specs[task_id] = PythonOperatorSpec(
-                    call_node, python_callable_function_name
+                    call_node, python_callable_name
                 )
 
     return task_ids_to_python_callable_specs
@@ -77,8 +84,12 @@ def get_xcoms_from_tasks(
         if callable_func_name == "<lambda>":  # TODO support lambdas
             continue
 
-        callable_func = node.getattr(callable_func_name)[0]
-        # ^ TODO: handle builtins and attribute imports that will raise on this call
+        try:
+            module_attribute = node.getattr(callable_func_name)
+        except AttributeInferenceError:
+            continue
+        else:
+            callable_func = module_attribute[0]
 
         if not isinstance(callable_func, astroid.FunctionDef):
             continue  # Callable_func is str not FunctionDef when imported
