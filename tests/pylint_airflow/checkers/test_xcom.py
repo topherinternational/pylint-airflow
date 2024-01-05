@@ -276,7 +276,7 @@ class TestGetXComsFromTasks:
 
         assert result == ({}, set())
 
-    def test_should_detect_xcom_push_tasks(self):
+    def test_should_detect_xcom_push_tasks_from_local_function_callables(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
 
@@ -320,7 +320,7 @@ class TestGetXComsFromTasks:
 
         assert result == expected_result
 
-    def test_should_detect_xcom_pull_tasks(self):
+    def test_should_detect_xcom_pull_tasks_from_local_function_callables(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
 
