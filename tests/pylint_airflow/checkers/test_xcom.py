@@ -187,9 +187,6 @@ class TestGetXComsFromTasks:
 
         assert result == ({}, set())
 
-    @pytest.mark.xfail(
-        reason="Not yet implemented", raises=astroid.AttributeInferenceError, strict=True
-    )
     def test_should_skip_builtin_callable(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
@@ -206,9 +203,6 @@ class TestGetXComsFromTasks:
 
         assert result == ({}, set())
 
-    @pytest.mark.xfail(
-        reason="Not yet implemented", raises=astroid.AttributeInferenceError, strict=True
-    )
     def test_should_skip_imported_callable_as_attribute(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
@@ -243,9 +237,6 @@ class TestGetXComsFromTasks:
 
         assert result == ({}, set())
 
-    @pytest.mark.xfail(
-        reason="Not yet implemented", raises=astroid.AttributeInferenceError, strict=True
-    )
     def test_should_skip_local_function_callables_as_attributes(self):
         test_code = """
         from airflow.operators.python_operator import PythonOperator
