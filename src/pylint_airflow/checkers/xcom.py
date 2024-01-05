@@ -39,6 +39,7 @@ class PythonOperatorSpec:
 
 
 def get_task_ids_to_python_callable_specs(node: astroid.Module) -> Dict[str, PythonOperatorSpec]:
+    # pylint: disable=too-many-nested-blocks
     """Fill this in"""
     assign_nodes = node.nodes_of_class(astroid.Assign)
     call_nodes = [assign.value for assign in assign_nodes if isinstance(assign.value, astroid.Call)]
