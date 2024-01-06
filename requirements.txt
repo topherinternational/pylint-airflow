@@ -1,7 +1,7 @@
 apache-airflow==2.1.1
 black
 pytest
-pytest-helpers-namespace==2021.12.29
+pytest-helpers-namespace
 pytest-mock
 sphinx
 sphinx-rtd-theme
