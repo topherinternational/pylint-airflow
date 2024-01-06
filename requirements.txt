@@ -1,9 +1,7 @@
-apache-airflow~=1.10.2
-black>=18.9b0
-# TODO remove MarkupSafe when Airflow goes to 2.x.x
-MarkupSafe==2.0.1
-pytest-helpers-namespace==2019.1.8
-pytest-mock==1.10.1
-pytest~=4.3
-sphinx-rtd-theme~=0.4.3
-Sphinx~=2.0.0
+apache-airflow==2.1.1
+black
+pytest
+pytest-helpers-namespace==2021.12.29
+pytest-mock==3.12.0
+sphinx
+sphinx-rtd-theme
