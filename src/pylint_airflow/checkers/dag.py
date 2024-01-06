@@ -263,6 +263,6 @@ class DagChecker(checkers.BaseChecker):
             for dagid, dag_nodes in dagids_to_deduplicated_nodes(dagids_to_nodes).items()
             if len(dag_nodes) > 1 and dagid is not None
         ]
-        for (dagid, dag_nodes) in duplicate_dags:
+        for dagid, dag_nodes in duplicate_dags:
             for dag_node in dag_nodes[1:]:  # all nodes except the first one are duplicates
                 self.add_message("duplicate-dag-name", node=dag_node, args=dagid)
