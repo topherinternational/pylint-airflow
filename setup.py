@@ -3,7 +3,7 @@ from pathlib import Path
 
 from setuptools import setup, find_packages
 
-requirements = ["pylint>=2.14.0"]
+requirements = ["pylint>=2.14.0", "apache-airflow>=1.10.15,<2.0.0"]
 
 readme_path = Path(__file__).resolve().parent / "README.rst"
 with open(readme_path, encoding="utf-8") as readme_file:
@@ -19,7 +19,7 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=requirements,
-    python_requires=">=3.7",
+    python_requires=">=3.7,<3.9",
     keywords=["pylint", "airflow", "plugin"],
     classifiers=[
         "Development Status :: 3 - Alpha",
